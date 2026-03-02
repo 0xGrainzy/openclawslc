@@ -143,19 +143,24 @@ const TARGET = new THREE.Vector3(14, MAX_H * 0.40, -2);
   SCROLL: camera rises + pulls back → reveals full range from above.
   This hero-to-satellite transition IS the scroll experience.
 */
+/*
+  Hero: elevated panoramic (phi=0.28) — mountain spans width as horizontal
+  band, serves as BACKDROP for the OPENCLAW SLC wordmark focal point.
+  Scroll: orbits + reveals full range from multiple angles.
+*/
 const KF_MOB = [
-  { theta: Math.PI + 0.15,  phi: 0.06, r:  45 }, // SSW — DRAMATIC hero (ground-level, close)
-  { theta: Math.PI * 1.50,  phi: 0.30, r:  72 }, // South — rising, pulling back
-  { theta: Math.PI * 2.00,  phi: 0.50, r: 100 }, // East — elevated satellite view
-  { theta: Math.PI * 2.50,  phi: 0.35, r:  78 }, // North — orbiting
-  { theta: Math.PI * 3.15,  phi: 0.06, r:  45 }, // SSW — return to hero
+  { theta: Math.PI + 0.15,  phi: 0.28, r:  60 }, // SSW — wide panoramic hero
+  { theta: Math.PI * 1.50,  phi: 0.38, r:  78 }, // South — rising
+  { theta: Math.PI * 2.00,  phi: 0.48, r:  95 }, // East — elevated back
+  { theta: Math.PI * 2.50,  phi: 0.40, r:  82 }, // North
+  { theta: Math.PI * 3.15,  phi: 0.28, r:  60 }, // SSW — return
 ];
 const KF_DESK = [
-  { theta: Math.PI + 0.15,  phi: 0.08, r:  65 }, // SSW
-  { theta: Math.PI * 1.50,  phi: 0.28, r:  95 }, // South
-  { theta: Math.PI * 2.00,  phi: 0.45, r: 130 }, // East
-  { theta: Math.PI * 2.50,  phi: 0.32, r: 100 }, // North
-  { theta: Math.PI * 3.15,  phi: 0.08, r:  65 }, // SSW
+  { theta: Math.PI + 0.15,  phi: 0.24, r:  82 }, // SSW
+  { theta: Math.PI * 1.50,  phi: 0.34, r: 105 }, // South
+  { theta: Math.PI * 2.00,  phi: 0.44, r: 130 }, // East
+  { theta: Math.PI * 2.50,  phi: 0.36, r: 108 }, // North
+  { theta: Math.PI * 3.15,  phi: 0.24, r:  82 }, // SSW
 ];
 
 function orbitPos(theta: number, phi: number, r: number): THREE.Vector3 {
