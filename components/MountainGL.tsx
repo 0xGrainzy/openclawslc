@@ -72,81 +72,103 @@ const PEAKS = [
 const RIDGE_X = 18;
 
 function frontH(wx: number, wz: number): number {
-  // Base envelope — narrow E-W, long N-S
+  // Wide base — steep west face, VERY wide east backcountry
   const dx = wx - RIDGE_X;
-  const westHW = 14, eastHW = 22;
+  const westHW = 14;
+  const eastHW = 55;  // massive backcountry — rolling mountains extend far east
   const hw = dx < 0 ? westHW : eastHW;
   const xNorm = dx / hw;
-  const zNorm = (wz - (-2)) / 28;
-  const r2 = xNorm * xNorm + zNorm * zNorm;
-  if (r2 >= 1) return 0;
+  const zNorm = (wz - (-2)) / 30;
 
-  // Base elevation — moderate, provides the "body"
-  const base = Math.pow(1 - r2, 1.6) * 8;
+  // N-S taper only (no hard east cutoff — let it roll)
+  const zR2 = zNorm * zNorm;
+  if (zR2 >= 1) return 0;
+  const xR2 = xNorm * xNorm;
+  if (xR2 >= 1) return 0;
 
-  // Ridge crest
-  const ridgeDx = (wx - RIDGE_X) / 4;
-  const ridge = Math.exp(-ridgeDx * ridgeDx) * Math.pow(Math.max(0, 1 - zNorm * zNorm), 0.8) * 5;
+  // West side: steep dome falloff. East side: very gentle plateau
+  let xFalloff: number;
+  if (dx < 0) {
+    xFalloff = Math.pow(1 - xR2, 1.8);  // steep west face
+  } else {
+    xFalloff = Math.pow(1 - xR2, 0.6);  // very gentle east — stays elevated
+  }
+  const zFalloff = Math.pow(1 - zR2, 1.0);
 
-  // Canyon cuts — deep V-shapes
+  // Base elevation — continuous body of mountains
+  const base = xFalloff * zFalloff * 9;
+
+  // Ridge crest at front
+  const ridgeDx = (wx - RIDGE_X) / 5;
+  const ridge = Math.exp(-ridgeDx * ridgeDx) * zFalloff * 5;
+
+  // Rolling wave undulation east of crest — continuous mountains
+  let wave = 0;
+  if (dx > 0) {
+    // Sine waves in both x and z create rolling peaks/valleys
+    const w1 = Math.sin(wx * 0.28 + wz * 0.12 + 1.5) * 0.5 + 0.5;
+    const w2 = Math.sin(wx * 0.15 - wz * 0.22 + 3.8) * 0.5 + 0.5;
+    const w3 = Math.sin(wx * 0.40 + wz * 0.08 + 0.7) * 0.3 + 0.5;
+    wave = (w1 * 3.5 + w2 * 2.8 + w3 * 1.5) * xFalloff * zFalloff;
+  }
+
+  // Canyon cuts — only on the western front face
   let cut = 0;
   for (const c of CANYONS) {
     const dzC = (wz - c.z) / c.width;
     const canyon = c.depth * Math.exp(-dzC * dzC);
-    // Canyons cut from west, deepen toward crest
-    const xFade = sstep(RIDGE_X - 14, RIDGE_X - 8, wx) * (1 - sstep(RIDGE_X + 8, RIDGE_X + 14, wx));
-    cut += canyon * xFade * MAX_H;
+    const cxFade = sstep(RIDGE_X - 14, RIDGE_X - 8, wx) * (1 - sstep(RIDGE_X + 10, RIDGE_X + 18, wx));
+    cut += canyon * cxFade * MAX_H;
   }
 
-  // Sharp peak bumps — these create the actual summits
+  // Sharp peak bumps
   let peaks = 0;
   for (const p of PEAKS) {
     const pdx = (wx - p.x) / p.r, pdz = (wz - p.z) / p.r;
-    const d2 = pdx * pdx + pdz * pdz;
-    // Sharp falloff for pointy peaks
-    peaks += p.h * Math.exp(-d2 * 1.2);
+    peaks += p.h * Math.exp(-(pdx * pdx + pdz * pdz) * 1.2);
   }
 
   // Texture noise
-  const noise = fbm(wx * 0.12 + 5.3, wz * 0.09 + 3.7, 5) * 2.5 * Math.pow(Math.max(0, 1 - r2), 1.5);
+  const envelope = xFalloff * zFalloff;
+  const noise = fbm(wx * 0.12 + 5.3, wz * 0.09 + 3.7, 5) * 2.8 * envelope;
+  const detail = fbm(wx * 0.22 + 11.0, wz * 0.18 + 7.0, 4) * 1.2 * envelope;
 
-  const h = base + ridge + peaks + noise - cut;
-  const edgeFade = Math.pow(Math.max(0, 1 - r2), 0.3);
+  const h = base + ridge + wave + peaks + noise + detail - cut;
+
+  // Soft edges
+  const edgeFade = Math.min(
+    Math.pow(Math.max(0, 1 - zR2), 0.35),
+    dx < 0 ? Math.pow(Math.max(0, 1 - xR2), 0.3) : 1
+  );
   return Math.max(0, h) * edgeFade;
 }
 
-/* ─── Back range terrain (behind the front range) ────────────── */
-const BACK_RIDGE_X = 42;
-const BACK_PEAKS = [
-  { x: 42, z: +18, h: 14, r: 4.0 },
-  { x: 44, z: +10, h: 16, r: 3.5 },
-  { x: 43, z: +2,  h: 18, r: 3.5 },
-  { x: 45, z: -4,  h: 15, r: 4.0 },
-  { x: 44, z: -10, h: 17, r: 3.8 },
-  { x: 42, z: -18, h: 13, r: 4.5 },
-  { x: 43, z: -25, h: 11, r: 4.0 },
-];
+/* ─── Back range — wider, continuous, rolling ────────────────── */
+const BACK_CX = 58;
 
 function backH(wx: number, wz: number): number {
-  const dx = wx - BACK_RIDGE_X;
-  const hw = 16;
+  const dx = wx - BACK_CX;
+  const hw = 30;  // wide
   const xNorm = dx / hw;
-  const zNorm = (wz - (-3)) / 30;
-  const r2 = xNorm * xNorm + zNorm * zNorm;
-  if (r2 >= 1) return 0;
+  const zNorm = (wz - (-3)) / 34;
+  const xR2 = xNorm * xNorm;
+  const zR2 = zNorm * zNorm;
+  if (xR2 >= 1 || zR2 >= 1) return 0;
 
-  const base = Math.pow(1 - r2, 1.4) * 6;
+  const xF = Math.pow(1 - xR2, 0.8);
+  const zF = Math.pow(1 - zR2, 0.8);
+  const env = xF * zF;
 
-  let peaks = 0;
-  for (const p of BACK_PEAKS) {
-    const pdx = (wx - p.x) / p.r, pdz = (wz - p.z) / p.r;
-    peaks += p.h * Math.exp(-(pdx * pdx + pdz * pdz) * 1.1);
-  }
+  // Rolling continuous wave — these mountains are a sea of ridges
+  const w1 = Math.sin(wx * 0.22 + wz * 0.15 + 4.2) * 0.5 + 0.5;
+  const w2 = Math.sin(wx * 0.14 - wz * 0.20 + 1.7) * 0.5 + 0.5;
+  const w3 = Math.sin(wx * 0.35 + wz * 0.10 + 6.1) * 0.4 + 0.5;
+  const wave = (w1 * 6 + w2 * 5 + w3 * 3) * env;
 
-  const noise = fbm(wx * 0.10 + 9.1, wz * 0.08 + 6.3, 4) * 2.0 * Math.pow(Math.max(0, 1 - r2), 1.5);
-  const h = base + peaks + noise;
-  const edgeFade = Math.pow(Math.max(0, 1 - r2), 0.3);
-  return Math.max(0, h) * edgeFade;
+  const base = env * 5;
+  const noise = fbm(wx * 0.10 + 9.1, wz * 0.08 + 6.3, 4) * 2.5 * env;
+
+  return Math.max(0, base + wave + noise);
 }
 
 /* ─── Color ──────────────────────────────────────────────────── */
@@ -222,9 +244,9 @@ export default function MountainGL({ onCameraUpdate }: Props) {
     const camera = new THREE.PerspectiveCamera(FOV, 1, 0.5, 1200);
 
     /* ─── Build front range mesh ────────────────────────────── */
-    const COLS = mobile ? 200 : 320;
+    const COLS = mobile ? 220 : 360;
     const ROWS = mobile ? 160 : 250;
-    const XMIN = -2, XMAX = 38;
+    const XMIN = -2, XMAX = 72;
     const ZMIN = -30, ZMAX = 26;
 
     const H: number[][] = Array.from({ length: ROWS }, (_, zi) =>
@@ -260,7 +282,7 @@ export default function MountainGL({ onCameraUpdate }: Props) {
     /* ─── Build back range mesh ─────────────────────────────── */
     const B_COLS = mobile ? 100 : 160;
     const B_ROWS = mobile ? 80 : 130;
-    const BX0 = 28, BX1 = 60;
+    const BX0 = 30, BX1 = 90;
     const BZ0 = -32, BZ1 = 28;
 
     const BH: number[][] = Array.from({ length: B_ROWS }, (_, zi) =>
