@@ -45,29 +45,31 @@ const MAX_H = 65;
   sx/sz = Gaussian half-widths; wider = broader, smoother base.
 */
 const PEAKS = [
-  // ── North / NW flank ────────────────────────────────────────
-  { x:  8, z: +16, h: 0.58, sx:10, sz: 9 }, // Grandeur Peak    9,299′
-  { x: 10, z: +10, h: 0.67, sx: 8, sz: 7 }, // Mt Olympus       9,030′  isolated NW
+  // ── North / NW flank — noticeably lower ─────────────────────
+  { x:  8, z: +16, h: 0.43, sx:11, sz:10 }, // Grandeur Peak    9,299′  (low, wide base)
+  { x: 10, z: +10, h: 0.50, sx: 9, sz: 8 }, // Mt Olympus       9,030′  (isolated NW)
 
-  // ── High central crest (continuous ridge) ───────────────────
-  { x: 13, z:  +6, h: 0.79, sx: 6, sz: 6 }, // Mount Raymond   10,241′
-  { x: 14, z:  +3, h: 0.77, sx: 5, sz: 5 }, // Kessler Peak    10,403′
-  { x: 14, z:  +1, h: 0.76, sx: 5, sz: 4 }, // Gobblers Knob   10,246′
-  { x: 16, z:  -1, h: 0.93, sx: 5, sz: 4 }, // Mount Superior  11,032′
-  { x: 17, z:  -2, h: 1.00, sx: 5, sz: 5 }, // Broads Fork Twins 11,330′ ← highest crest
-  { x: 18, z:  -4, h: 0.90, sx: 5, sz: 4 }, // Hidden Peak     10,932′
-  { x: 18, z:  -6, h: 0.97, sx: 4, sz: 4 }, // Pfeifferhorn    11,325′
-  { x: 18, z:  -8, h: 0.96, sx: 5, sz: 4 }, // AF Twin Peaks   11,329′
-  { x: 17, z: -10, h: 0.94, sx: 5, sz: 4 }, // White Baldy     11,321′
+  // ── Transition zone — rising toward crest ───────────────────
+  { x: 13, z:  +6, h: 0.72, sx: 7, sz: 6 }, // Mount Raymond   10,241′
+  { x: 14, z:  +3, h: 0.70, sx: 6, sz: 5 }, // Kessler Peak    10,403′
+  { x: 14, z:  +1, h: 0.68, sx: 6, sz: 5 }, // Gobblers Knob   10,246′
 
-  // ── Lone Peak massif (separated by saddle) ──────────────────
-  { x: 16, z: -14, h: 0.92, sx: 6, sz: 6 }, // Lone Peak       11,253′
+  // ── High central crest ───────────────────────────────────────
+  { x: 16, z:  -1, h: 0.92, sx: 6, sz: 5 }, // Mount Superior  11,032′
+  { x: 17, z:  -2, h: 1.00, sx: 6, sz: 6 }, // Broads Fork Twins 11,330′ ← highest
+  { x: 18, z:  -4, h: 0.88, sx: 5, sz: 5 }, // Hidden Peak     10,932′
+  { x: 18, z:  -6, h: 0.96, sx: 5, sz: 5 }, // Pfeifferhorn    11,325′
+  { x: 18, z:  -8, h: 0.95, sx: 6, sz: 5 }, // AF Twin Peaks   11,329′
+  { x: 17, z: -10, h: 0.93, sx: 6, sz: 5 }, // White Baldy     11,321′
 
-  // ── Southern tail ────────────────────────────────────────────
-  { x: 15, z: -20, h: 0.78, sx: 7, sz: 7 }, // Box Elder Peak  11,101′
+  // ── Lone Peak massif (saddle separates from main crest) ─────
+  { x: 16, z: -14, h: 0.90, sx: 7, sz: 6 }, // Lone Peak       11,253′
 
-  // ── Ridge backbone (elongated low Gaussian for continuous crest look) ──
-  { x: 15, z:   0, h: 0.38, sx: 4, sz:20 }, // ridge spine N-S
+  // ── Southern tail — tapering ────────────────────────────────
+  { x: 15, z: -20, h: 0.72, sx: 8, sz: 7 }, // Box Elder Peak  11,101′
+
+  // ── Ridge backbone — long, low, ties everything together ────
+  { x: 15, z:   0, h: 0.35, sx: 5, sz:22 }, // ridge spine
 ];
 
 function terrainH(wx: number, wz: number): number {
@@ -80,21 +82,24 @@ function terrainH(wx: number, wz: number): number {
     h += p.h * Math.exp(-(dx * dx + dz * dz));
   }
 
-  // ── Edge tapers — eliminate vertical boundary walls ──
-  // East taper: height → 0 as x approaches XMAX
-  const xFade = 1 - Math.max(0, Math.min(1, (wx - 22) / 12));
-  // North/south taper: height → 0 at Z edges
+  // ── Edge tapers — no hard boundaries anywhere ──────────────
+  // East taper: smooth fade from x=18 → 0 at x=28
+  const xFade = 1 - Math.max(0, Math.min(1, (wx - 18) / 10));
+  // West taper: fade in from XMIN → full at XMIN+30
+  const xWest = Math.max(0, Math.min(1, (wx - XMIN_CONST) / 30));
+  // North/south: 30-unit ramp so edges are far from peaks
   const zFade = Math.min(
-    Math.max(0, Math.min(1, (wz - ZMIN_CONST) / 7)),
-    Math.max(0, Math.min(1, (ZMAX_CONST - wz) / 7)),
+    Math.max(0, Math.min(1, (wz - ZMIN_CONST) / 30)),
+    Math.max(0, Math.min(1, (ZMAX_CONST - wz) / 30)),
   );
 
-  return Math.min(1, Math.max(0, h)) * xFade * zFade;
+  return Math.min(1, Math.max(0, h)) * xFade * xWest * zFade;
 }
 
-// These constants mirror the terrain build below; used in terrainH
-const ZMIN_CONST = -26;
-const ZMAX_CONST = +24;
+// Match terrain build constants
+const XMIN_CONST = -120;
+const ZMIN_CONST = -58;
+const ZMAX_CONST = +52;
 
 function altColor(t: number): [number, number, number] {
   // Valley / foothills: dark navy → crest: bright ice-blue / near-white
@@ -113,19 +118,21 @@ const TARGET = new THREE.Vector3(12, MAX_H * 0.45, -1);
   theta sweeps π → 3π  (one full clockwise orbit, top-down view).
   Adjusted r for the more compact terrain footprint.
 */
+// Higher phi on W/E views gives the "Andy Earl relief map" look.
+// Lower phi on S/N views gives dramatic silhouette along the ridge length.
 const KF_MOB = [
-  { theta: Math.PI,          phi: 0.20, r:  82 }, // West  — SLC valley
-  { theta: Math.PI * 1.50,   phi: 0.09, r:  92 }, // South — south flank
-  { theta: Math.PI * 2.00,   phi: 0.30, r: 130 }, // East  — back face, elevated
-  { theta: Math.PI * 2.50,   phi: 0.14, r:  95 }, // North — north flank
-  { theta: Math.PI * 3.00,   phi: 0.20, r:  82 }, // West  — complete
+  { theta: Math.PI,          phi: 0.32, r:  82 }, // West  — elevated oblique (SLC valley view)
+  { theta: Math.PI * 1.50,   phi: 0.10, r:  96 }, // South — low, range silhouette end-on
+  { theta: Math.PI * 2.00,   phi: 0.34, r: 128 }, // East  — elevated back face
+  { theta: Math.PI * 2.50,   phi: 0.12, r:  98 }, // North — range silhouette end-on
+  { theta: Math.PI * 3.00,   phi: 0.32, r:  82 }, // West  — full circle
 ];
 const KF_DESK = [
-  { theta: Math.PI,          phi: 0.17, r: 110 }, // West
-  { theta: Math.PI * 1.50,   phi: 0.08, r: 125 }, // South
-  { theta: Math.PI * 2.00,   phi: 0.28, r: 162 }, // East
-  { theta: Math.PI * 2.50,   phi: 0.11, r: 128 }, // North
-  { theta: Math.PI * 3.00,   phi: 0.17, r: 110 }, // West
+  { theta: Math.PI,          phi: 0.28, r: 110 }, // West
+  { theta: Math.PI * 1.50,   phi: 0.08, r: 130 }, // South
+  { theta: Math.PI * 2.00,   phi: 0.30, r: 160 }, // East
+  { theta: Math.PI * 2.50,   phi: 0.10, r: 132 }, // North
+  { theta: Math.PI * 3.00,   phi: 0.28, r: 110 }, // West
 ];
 
 function orbitPos(theta: number, phi: number, r: number): THREE.Vector3 {
@@ -174,11 +181,11 @@ export default function MountainGL({ onCameraUpdate }: Props) {
     scene.fog    = new THREE.FogExp2(0x000000, FOG_DEN);
     const camera = new THREE.PerspectiveCamera(FOV, 1, 0.5, 1000);
 
-    const COLS = mobile ? 150 : 220;
-    const ROWS = mobile ? 110 : 160;
-    // Compact terrain: Central Wasatch only (matches Andy Earl map)
-    const XMIN = -100, XMAX = 34;
-    const ZMIN =   ZMIN_CONST, ZMAX = ZMAX_CONST;
+    const COLS = mobile ? 140 : 200;
+    const ROWS = mobile ? 100 : 150;
+    // Wider N-S extent so 30-unit tapers don't crowd the peaks
+    const XMIN = XMIN_CONST, XMAX = 28;
+    const ZMIN = ZMIN_CONST, ZMAX = ZMAX_CONST;
 
     const H: number[][] = Array.from({ length: ROWS }, (_, zi) =>
       Array.from({ length: COLS }, (_, xi) => {
@@ -202,7 +209,9 @@ export default function MountainGL({ onCameraUpdate }: Props) {
         seg(wx0,H[zi][xi],wz,wx1,H[zi][xi+1],wz);
       }
     }
-    for(let xi=0;xi<COLS;xi++){
+    // Z-direction columns at 25% density — eliminates "vertical wall" look
+    // Sparse columns keep depth cues without solid-wall effect
+    for(let xi=0;xi<COLS;xi+=4){
       const wx=XMIN+(xi/(COLS-1))*(XMAX-XMIN);
       for(let zi=0;zi<ROWS-1;zi++){
         const wz0=ZMIN+(zi/(ROWS-1))*(ZMAX-ZMIN);
@@ -220,7 +229,7 @@ export default function MountainGL({ onCameraUpdate }: Props) {
     const mouse  = new THREE.Vector2();
     let   scroll = 0;
     const camPos = new THREE.Vector3();
-    camPos.copy(orbitPos(KF_MOB[0].theta, KF_MOB[0].phi, KF_MOB[0].r));
+    camPos.copy(orbitPos(KFS[0].theta, KFS[0].phi, KFS[0].r));
 
     function resize(){
       if(!el) return;
