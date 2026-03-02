@@ -15,7 +15,7 @@ const MONO: React.CSSProperties  = { fontFamily:"'JetBrains Mono','Fira Code','C
 
 /* ─── Sections ────────────────────────────────────────────────── */
 const SECTIONS = { hero: 0.00, events: 0.35, media: 0.65, contact: 0.88 };
-const HW = { hero: 0.14, events: 0.12, media: 0.12, contact: 0.12 };
+const HW = { hero: 0.18, events: 0.16, media: 0.16, contact: 0.14 };
 
 function sectionOpacity(scroll: number, peak: number, halfW: number): number {
   return Math.max(0, 1 - Math.abs(scroll - peak) / halfW);
@@ -38,8 +38,8 @@ const EVENTS = [
 ];
 const ARTICLES = [
   { tag:"GUIDE",     date:"MAR 2026", title:"OpenClaw Setup Best Practices",                        href:"/articles/openclaw-setup" },
-  { tag:"DEEP DIVE", date:"MAR 2026", title:"AI Agents in the Wasatch: Why SLC Is Quietly Winning", href:"#"                        },
-  { tag:"OPS",       date:"FEB 2026", title:"Running Agents Locally Without Losing Your Mind",       href:"#"                        },
+  { tag:"DEEP DIVE", date:"MAR 2026", title:"AI Agents in the Wasatch: Why SLC Is Quietly Winning", href:"/articles/ai-agents-wasatch"        },
+  { tag:"OPS",       date:"FEB 2026", title:"Running Agents Locally Without Losing Your Mind",       href:"/articles/running-agents-locally"  },
 ];
 
 /* ─── Compass Rose SVG ────────────────────────────────────────── */
