@@ -15,7 +15,7 @@ import * as THREE from "three";
   ─────────────────
   X-axis : West → East   (positive = deeper into range)
   Z-axis : South → North (positive = north)
-  Y-axis : elevation (MAX_H = 65 world-units)
+  Y-axis : elevation (MAX_H = 20 world-units — flat relief ratio ~1:5.5 N-S)
 
   ACCURACY NOTES
   ──────────────
@@ -37,7 +37,7 @@ import * as THREE from "three";
   KF[4]  θ=3π       West  — full circle complete
 */
 
-const MAX_H = 65;
+const MAX_H = 20; // flat relief — height:N-S ratio ≈ 1:5.5  (matches Andy Earl oblique map)
 
 /*
   Peaks ordered north (left on west view) → south (right).
@@ -110,29 +110,33 @@ function altColor(t: number): [number, number, number] {
   ];
 }
 
-// Look target: slightly east of centre, near mid-elevation
-const TARGET = new THREE.Vector3(12, MAX_H * 0.45, -1);
+// Look target: range centre; y=MAX_H/2 keeps camera above the mass
+const TARGET = new THREE.Vector3(12, MAX_H / 2, -1);
 
 /*
   360° Keyframes.
   theta sweeps π → 3π  (one full clockwise orbit, top-down view).
   Adjusted r for the more compact terrain footprint.
 */
-// Higher phi on W/E views gives the "Andy Earl relief map" look.
-// Lower phi on S/N views gives dramatic silhouette along the ridge length.
+/*
+  With MAX_H=20 the terrain is very flat.
+  High phi (0.42–0.48) gives the Andy Earl oblique-relief look —
+  camera well above the range, looking steeply down.
+  S/N views drop phi so the low ridge has some drama end-on.
+*/
 const KF_MOB = [
-  { theta: Math.PI,          phi: 0.32, r:  82 }, // West  — elevated oblique (SLC valley view)
-  { theta: Math.PI * 1.50,   phi: 0.10, r:  96 }, // South — low, range silhouette end-on
-  { theta: Math.PI * 2.00,   phi: 0.34, r: 128 }, // East  — elevated back face
-  { theta: Math.PI * 2.50,   phi: 0.12, r:  98 }, // North — range silhouette end-on
-  { theta: Math.PI * 3.00,   phi: 0.32, r:  82 }, // West  — full circle
+  { theta: Math.PI,          phi: 0.45, r:  80 }, // West  — Andy Earl oblique (hero)
+  { theta: Math.PI * 1.50,   phi: 0.18, r:  90 }, // South — end-on, gentle ridge profile
+  { theta: Math.PI * 2.00,   phi: 0.44, r: 120 }, // East  — back face from above
+  { theta: Math.PI * 2.50,   phi: 0.16, r:  92 }, // North — end-on north side
+  { theta: Math.PI * 3.00,   phi: 0.45, r:  80 }, // West  — full circle
 ];
 const KF_DESK = [
-  { theta: Math.PI,          phi: 0.28, r: 110 }, // West
-  { theta: Math.PI * 1.50,   phi: 0.08, r: 130 }, // South
-  { theta: Math.PI * 2.00,   phi: 0.30, r: 160 }, // East
-  { theta: Math.PI * 2.50,   phi: 0.10, r: 132 }, // North
-  { theta: Math.PI * 3.00,   phi: 0.28, r: 110 }, // West
+  { theta: Math.PI,          phi: 0.40, r: 108 }, // West
+  { theta: Math.PI * 1.50,   phi: 0.14, r: 125 }, // South
+  { theta: Math.PI * 2.00,   phi: 0.42, r: 155 }, // East
+  { theta: Math.PI * 2.50,   phi: 0.12, r: 128 }, // North
+  { theta: Math.PI * 3.00,   phi: 0.40, r: 108 }, // West
 ];
 
 function orbitPos(theta: number, phi: number, r: number): THREE.Vector3 {

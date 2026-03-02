@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import type { CameraInfo } from "./MountainGL";
 
-const MAX_H = 65;
+const MAX_H = 20;
 
 // Matches peak positions in MountainGL.tsx — Central Wasatch only
 const PEAKS_DEF = [
