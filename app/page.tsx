@@ -14,11 +14,13 @@ const BEBAS: React.CSSProperties = { fontFamily:"'Bebas Neue',sans-serif", lette
 const MONO: React.CSSProperties  = { fontFamily:"'JetBrains Mono','Fira Code','Courier New',monospace" };
 
 /* ─── Sections ────────────────────────────────────────────────── */
-const SECTIONS = { hero: 0.00, events: 0.35, media: 0.65, contact: 0.88 };
-const HW = { hero: 0.18, events: 0.16, media: 0.16, contact: 0.14 };
+const SECTIONS = { hero: 0.00, events: 0.30, media: 0.58, contact: 0.85 };
+const HW = { hero: 0.10, events: 0.08, media: 0.08, contact: 0.10 };
 
 function sectionOpacity(scroll: number, peak: number, halfW: number): number {
-  return Math.max(0, 1 - Math.abs(scroll - peak) / halfW);
+  const raw = Math.max(0, 1 - Math.abs(scroll - peak) / halfW);
+  // Sharper curve — snaps in/out more dramatically
+  return raw * raw;
 }
 
 function orbitLabel(s: number): { dir: string; desc: string } {
@@ -315,9 +317,9 @@ export default function Home() {
       </nav>
 
       {/* ═══════════════════════════════════════════════════════
-          SCROLL DRIVER  500vh
+          SCROLL DRIVER  800vh
       ═══════════════════════════════════════════════════════ */}
-      <div style={{height:"500vh"}}>
+      <div style={{height:"800vh"}}>
         <div style={{position:"sticky",top:0,height:"100vh",overflow:"hidden"}}>
 
           {/* HERO — bottom text */}

@@ -353,25 +353,50 @@ export default function MountainGL({ onCameraUpdate }: Props) {
     const mat = new THREE.LineBasicMaterial({ vertexColors: true, opacity: 0.90, transparent: true });
     scene.add(new THREE.LineSegments(geo, mat));
 
-    /* ─── Infinite ground grid ───────────────────────────────── */
-    const gridVerts: number[] = [], gridCols: number[] = [];
-    const GE = 400;
-    const GSP = 3.0;
+    /* ─── Animated ground grid — mouse creates ripple waves ──── */
+    const GE = mobile ? 200 : 350;
+    const GSP = mobile ? 4.0 : 3.0;
     const gOp = 0.09;
-    for (let z = -GE; z <= GE; z += GSP) {
-      gridVerts.push(-GE, 0, z, GE, 0, z);
-      gridCols.push(0.06*gOp, 0.12*gOp, 0.35*gOp, 0.06*gOp, 0.12*gOp, 0.35*gOp);
+
+    // Build grid as individual vertices so we can animate Y per-vertex
+    const gridPositions: number[] = [];
+    const gridColors: number[] = [];
+
+    // E-W lines (rows of Z)
+    const zLines: number[] = [];
+    for (let z = -GE; z <= GE; z += GSP) zLines.push(z);
+    const xLines: number[] = [];
+    for (let x = -GE; x <= GE; x += GSP) xLines.push(x);
+
+    // E-W horizontal lines
+    for (const z of zLines) {
+      for (let i = 0; i < xLines.length - 1; i++) {
+        gridPositions.push(xLines[i], 0, z, xLines[i + 1], 0, z);
+        gridColors.push(0.06*gOp, 0.12*gOp, 0.35*gOp, 0.06*gOp, 0.12*gOp, 0.35*gOp);
+      }
     }
-    for (let x = -GE; x <= GE; x += GSP) {
-      gridVerts.push(x, 0, -GE, x, 0, GE);
-      gridCols.push(0.06*gOp, 0.12*gOp, 0.35*gOp, 0.06*gOp, 0.12*gOp, 0.35*gOp);
+    // N-S vertical lines
+    for (const x of xLines) {
+      for (let i = 0; i < zLines.length - 1; i++) {
+        gridPositions.push(x, 0, zLines[i], x, 0, zLines[i + 1]);
+        gridColors.push(0.06*gOp, 0.12*gOp, 0.35*gOp, 0.06*gOp, 0.12*gOp, 0.35*gOp);
+      }
     }
 
+    const gridPosArray = new Float32Array(gridPositions);
     const gridGeo = new THREE.BufferGeometry();
-    gridGeo.setAttribute("position", new THREE.Float32BufferAttribute(gridVerts, 3));
-    gridGeo.setAttribute("color", new THREE.Float32BufferAttribute(gridCols, 3));
+    gridGeo.setAttribute("position", new THREE.BufferAttribute(gridPosArray, 3));
+    gridGeo.setAttribute("color", new THREE.Float32BufferAttribute(gridColors, 3));
     const gridMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 1 });
     scene.add(new THREE.LineSegments(gridGeo, gridMat));
+
+    // Raycaster for mouse→ground intersection
+    const raycaster = new THREE.Raycaster();
+    const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    const mouseWorld = new THREE.Vector3();
+    // Trail of recent mouse positions for ripple persistence
+    const ripples: Array<{ x: number; z: number; t: number }> = [];
+    let clock = 0;
 
     /* ─── Interaction ────────────────────────────────────────── */
     const mouse = new THREE.Vector2();
@@ -399,13 +424,69 @@ export default function MountainGL({ onCameraUpdate }: Props) {
     window.addEventListener("mousemove", onMouse, { passive: true });
 
     let raf = 0;
+    let lastRippleTime = 0;
+
     function animate() {
       raf = requestAnimationFrame(animate);
+      clock += 0.016; // ~60fps
+
       const kf = lerpKf(scroll, KFS);
       const dst = orbitPos(kf.theta + mouse.x * 0.03, kf.phi - mouse.y * 0.008, kf.r);
       camPos.lerp(dst, 0.035);
       camera.position.copy(camPos);
       camera.lookAt(TARGET);
+
+      // Raycast mouse onto ground plane to find world position
+      raycaster.setFromCamera(mouse, camera);
+      const hitPoint = new THREE.Vector3();
+      if (raycaster.ray.intersectPlane(groundPlane, hitPoint)) {
+        mouseWorld.copy(hitPoint);
+        // Add ripple source every few frames
+        if (clock - lastRippleTime > 0.08) {
+          ripples.push({ x: hitPoint.x, z: hitPoint.z, t: clock });
+          lastRippleTime = clock;
+          // Keep max 30 ripples
+          if (ripples.length > 30) ripples.shift();
+        }
+      } else {
+      }
+
+      // Animate grid vertices — ripple waves from mouse/trail
+      const pos = gridGeo.attributes.position as THREE.BufferAttribute;
+      const arr = pos.array as Float32Array;
+      for (let i = 0; i < arr.length; i += 3) {
+        const vx = gridPositions[i];
+        const vz = gridPositions[i + 2];
+        let yOff = 0;
+
+        // Sum ripple contributions from all active ripples
+        for (const rip of ripples) {
+          const age = clock - rip.t;
+          if (age > 4) continue; // ripple dies after 4s
+          const dx = vx - rip.x;
+          const dz = vz - rip.z;
+          const dist = Math.sqrt(dx * dx + dz * dz);
+          const rippleRadius = age * 35; // expanding ring
+          const ringDist = Math.abs(dist - rippleRadius);
+          const ringWidth = 12;
+          if (ringDist < ringWidth) {
+            const ringStrength = (1 - ringDist / ringWidth);
+            const decay = Math.exp(-age * 1.2); // fade over time
+            const distDecay = Math.exp(-dist * 0.008); // fade with distance
+            yOff += Math.sin(dist * 0.3 - age * 6) * ringStrength * decay * distDecay * 1.2;
+          }
+        }
+
+        // Subtle ambient wave even without mouse
+        yOff += Math.sin(vx * 0.04 + clock * 0.8) * Math.sin(vz * 0.04 + clock * 0.6) * 0.15;
+
+        arr[i + 1] = yOff;
+      }
+      pos.needsUpdate = true;
+
+      // Expire old ripples
+      while (ripples.length > 0 && clock - ripples[0].t > 4) ripples.shift();
+
       renderer.render(scene, camera);
       if (el) onCameraUpdate?.({ camera, width: el.clientWidth, height: el.clientHeight });
     }
