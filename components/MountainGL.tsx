@@ -37,9 +37,22 @@ function altColor(t: number): [number, number, number] {
   return [0.02 + t * 0.20, 0.04 + t * 0.38, 0.18 + t * 0.72];
 }
 
-/* Camera target — look at upper-middle of the range so peaks aren't clipped */
+/*
+  Camera geometry cheat-sheet
+  ─────────────────────────────────────────
+  TARGET.y = point the camera looks at (world space)
+  phi > 0  = camera above target → looking DOWN  → peaks can overshoot top
+  phi < 0  = camera below target → looking UP    → peaks fill upper frame naturally
+  r        = orbital radius (smaller = closer / larger mountain)
+
+  Mobile goal: valley-floor vantage (~y 40), r=88, phi≈-0.05
+    camera.y = 44 + 88*sin(-0.05) = ~39.6
+    peaks at y=58 → 9° above screen centre (well inside ±34° FOV@68°)
+    base  at y=0  → 26° below screen centre (also inside FOV)
+    → full mountain visible, peaks in upper third, close and dramatic
+*/
 const TARGET_DESK   = new THREE.Vector3(8, 18, 0);
-const TARGET_MOBILE = new THREE.Vector3(8, 26, 0); // look higher → peaks drop into frame
+const TARGET_MOBILE = new THREE.Vector3(8, 44, 0); // aim at upper mountain
 
 /* Desktop: wide panoramic sweep */
 const KEYFRAMES_DESK = [
@@ -48,12 +61,16 @@ const KEYFRAMES_DESK = [
   { theta:  0.10, phi: 0.50, r: 125 },
   { theta: -0.75, phi: 0.42, r: 155 },
 ];
-/* Mobile: higher camera angle so peaks breathe below the top edge */
+/*
+  Mobile: camera sits at valley elevation, looks slightly up.
+  phi is negative (camera y < target y) → natural upward view.
+  r is much smaller → mountain fills the viewport.
+*/
 const KEYFRAMES_MOB = [
-  { theta:  1.50, phi: 0.52, r: 165 }, // higher phi = camera higher = peaks fall into centre
-  { theta:  0.90, phi: 0.52, r: 140 },
-  { theta:  0.10, phi: 0.60, r: 125 },
-  { theta: -0.60, phi: 0.54, r: 155 },
+  { theta:  1.65, phi: -0.05, r: 88 }, // side-valley hero shot
+  { theta:  0.90, phi:  0.00, r: 82 }, // rotate around, climbing
+  { theta:  0.10, phi:  0.06, r: 78 }, // oblique, slightly above foothills
+  { theta: -0.55, phi: -0.03, r: 86 }, // sweeping south, back to valley
 ];
 
 function orbitPos(theta: number, phi: number, r: number, target: THREE.Vector3): THREE.Vector3 {
@@ -92,7 +109,7 @@ export default function MountainGL({ onCameraUpdate }: Props) {
     if (!el) return;
 
     const mobile  = window.innerWidth < 768;
-    const rScale  = mobile ? 1.50 : 1.0;
+    const rScale  = 1.0; // r is baked into keyframes per device
     const KFS     = mobile ? KEYFRAMES_MOB : KEYFRAMES_DESK;
     const TARGET  = mobile ? TARGET_MOBILE  : TARGET_DESK;
     const FOV     = mobile ? 68 : 48;        // wider vertical FOV on mobile portrait
