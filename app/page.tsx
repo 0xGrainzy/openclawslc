@@ -116,11 +116,11 @@ export default function Home() {
       }}>
         <div style={{...BEBAS, fontSize:"min(19vw, 19rem)", lineHeight:0.88,
           letterSpacing:"-0.01em", whiteSpace:"nowrap"}}>
-          <span style={{color:"rgba(255,255,255,0.07)"}}>OPEN</span>
-          <span style={{color:"rgba(37,99,235,0.14)"}}>CLAW</span>
+          <span style={{color:"rgba(255,255,255,0.16)"}}>OPEN</span>
+          <span style={{color:"rgba(37,99,235,0.32)"}}>CLAW</span>
         </div>
         <div style={{...BEBAS, fontSize:"min(7vw, 6rem)", letterSpacing:"0.25em",
-          color:"rgba(255,255,255,0.04)", marginTop:"-0.1em"}}>SLC</div>
+          color:"rgba(255,255,255,0.10)", marginTop:"-0.1em"}}>SLC</div>
       </div>
 
       {/* ── Full-screen nav menu — zIndex 300 ── */}
