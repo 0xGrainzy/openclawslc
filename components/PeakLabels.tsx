@@ -3,26 +3,26 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import type { CameraInfo } from "./MountainGL";
 
-const MAX_H = 30;
+const MAX_H = 28;
 
-/*
-  Peak label positions match PEAK_BUMPS in MountainGL.tsx.
-  wy = approximate peak height (dome + ridge + noise + bump).
-  These don't need to be exact — just close enough for label placement.
-*/
+// Approximate peak heights (dome + ridge + noise + bump combined).
+// Don't need to be exact — just close enough for label placement.
 const PEAKS_DEF = [
-  { name:"Grandeur",     elev:"9,299′",  wx:  8, wy: MAX_H * 0.22, wz: +16 },
-  { name:"Mt Olympus",   elev:"9,030′",  wx: 10, wy: MAX_H * 0.42, wz: +10 },
-  { name:"Mt Raymond",   elev:"10,241′", wx: 13, wy: MAX_H * 0.62, wz:  +5 },
-  { name:"Kessler",      elev:"10,403′", wx: 14, wy: MAX_H * 0.68, wz:  +1 },
-  { name:"Mt Superior",  elev:"11,032′", wx: 16, wy: MAX_H * 0.84, wz:  -3 },
-  { name:"Broads Fork",  elev:"11,330′", wx: 17, wy: MAX_H * 0.95, wz:  -7 },
-  { name:"Pfeifferhorn", elev:"11,325′", wx: 18, wy: MAX_H * 0.90, wz: -11 },
-  { name:"Lone Peak",    elev:"11,253′", wx: 16, wy: MAX_H * 0.72, wz: -17 },
-  { name:"Box Elder",    elev:"11,101′", wx: 15, wy: MAX_H * 0.45, wz: -23 },
+  { name:"Grandeur",      elev:"9,299′",  wx:  8, wy: MAX_H * 0.20, wz: +16 },
+  { name:"Mt Olympus",    elev:"9,030′",  wx:  9, wy: MAX_H * 0.35, wz:  +6 },
+  { name:"Gobblers Knob", elev:"10,246′", wx: 13, wy: MAX_H * 0.55, wz:  +6 },
+  { name:"Mt Raymond",    elev:"10,241′", wx: 14, wy: MAX_H * 0.58, wz:  +5 },
+  { name:"Kessler",       elev:"10,403′", wx: 15, wy: MAX_H * 0.62, wz:  +1 },
+  { name:"Mt Superior",   elev:"11,032′", wx: 17, wy: MAX_H * 0.82, wz:  -2 },
+  { name:"Broads Fork",   elev:"11,330′", wx: 18, wy: MAX_H * 0.95, wz:  -3 },
+  { name:"Hidden Peak",   elev:"10,992′", wx: 19, wy: MAX_H * 0.78, wz:  -6 },
+  { name:"Pfeifferhorn",  elev:"11,325′", wx: 20, wy: MAX_H * 0.88, wz:  -7 },
+  { name:"White Baldy",   elev:"11,321′", wx: 19, wy: MAX_H * 0.85, wz:  -9 },
+  { name:"Lone Peak",     elev:"11,253′", wx: 18, wy: MAX_H * 0.72, wz: -12 },
+  { name:"Box Elder",     elev:"11,101′", wx: 17, wy: MAX_H * 0.42, wz: -20 },
 ];
 
-const LABEL_W = 86, LABEL_H = 34, MIN_XGAP = 50;
+const LABEL_W = 86, LABEL_H = 34, MIN_XGAP = 48;
 
 interface Placed {
   name: string; elev: string;
@@ -46,7 +46,7 @@ export default function PeakLabels({ getCameraInfo }: Props) {
 
       const visible: Array<{ name: string; elev: string; px: number; py: number }> = [];
       for (const p of PEAKS_DEF) {
-        vec.set(p.wx, p.wy + 1.0, p.wz);
+        vec.set(p.wx, p.wy + 0.8, p.wz);
         const proj = vec.clone().project(camera);
         if (proj.z >= 1) continue;
         const px = (proj.x * 0.5 + 0.5) * width;
