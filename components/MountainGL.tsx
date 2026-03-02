@@ -161,12 +161,16 @@ function backH(wx: number, wz: number): number {
   const w1 = Math.sin(wx * 0.22 + wz * 0.15 + 4.2) * 0.5 + 0.5;
   const w2 = Math.sin(wx * 0.14 - wz * 0.20 + 1.7) * 0.5 + 0.5;
   const w3 = Math.sin(wx * 0.35 + wz * 0.10 + 6.1) * 0.4 + 0.5;
-  const wave = (w1 * 3.5 + w2 * 3.0 + w3 * 2.0) * env;
+  const wave = (w1 * 5.0 + w2 * 4.0 + w3 * 3.0) * env;
 
-  const base = env * 5;
-  const noise = fbm(wx * 0.10 + 9.1, wz * 0.08 + 6.3, 4) * 1.5 * env;
+  // Secondary sharp peaks on the back range
+  const p1 = Math.max(0, Math.sin(wz * 0.35 + 2.1)) * Math.max(0, Math.sin(wx * 0.25 + 1.4)) * 4.0 * env;
+  const p2 = Math.max(0, Math.sin(wz * 0.50 - 0.8)) * Math.max(0, Math.sin(wx * 0.18 + 3.0)) * 3.0 * env;
 
-  return Math.max(0, base + wave + noise);
+  const base = env * 6;
+  const noise = fbm(wx * 0.10 + 9.1, wz * 0.08 + 6.3, 5) * 2.5 * env;
+
+  return Math.max(0, base + wave + p1 + p2 + noise);
 }
 
 /* ─── Color ──────────────────────────────────────────────────── */
