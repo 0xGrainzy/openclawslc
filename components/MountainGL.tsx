@@ -51,21 +51,21 @@ const CANYONS = [
   { z: -18, depth: 0.20, width: 1.8 },
 ];
 
-/* ─── Front range: Peaks — moderate, rounded ─────────────────── */
+/* ─── Front range: Peaks — small bumps on the ridge ──────────── */
 const PEAKS = [
-  { x: 14, z:+20, h: 3,  r: 4.5 },  // Grandeur
-  { x: 14, z:+13, h: 3,  r: 4.0 },  // Mt Aire
-  { x: 16, z: +7, h: 5,  r: 4.0 },  // Olympus
-  { x: 18, z: +6, h: 6,  r: 3.5 },  // Gobblers Knob
-  { x: 18, z: +5, h: 6,  r: 3.5 },  // Raymond
-  { x: 19, z: +1, h: 6.5,r: 3.5 },  // Kessler
-  { x: 20, z: -2, h: 8,  r: 3.5 },  // Superior
-  { x: 22, z: -3, h: 9,  r: 4.0 },  // Twin Peaks — highest
-  { x: 22, z: -6, h: 7,  r: 3.5 },  // Hidden Peak
-  { x: 23, z: -8, h: 8.5,r: 3.8 },  // Pfeifferhorn
-  { x: 22, z:-10, h: 8,  r: 3.5 },  // White Baldy
-  { x: 21, z:-15, h: 7,  r: 4.0 },  // Lone Peak
-  { x: 19, z:-24, h: 4,  r: 5.0 },  // Box Elder
+  { x: 14, z:+20, h: 1.5, r: 5.0 },  // Grandeur
+  { x: 14, z:+13, h: 1.5, r: 5.0 },  // Mt Aire
+  { x: 16, z: +7, h: 2.5, r: 5.0 },  // Olympus
+  { x: 18, z: +6, h: 3.0, r: 4.5 },  // Gobblers Knob
+  { x: 18, z: +5, h: 3.0, r: 4.5 },  // Raymond
+  { x: 19, z: +1, h: 3.2, r: 4.5 },  // Kessler
+  { x: 20, z: -2, h: 4.0, r: 4.5 },  // Superior
+  { x: 22, z: -3, h: 4.5, r: 5.0 },  // Twin Peaks — highest
+  { x: 22, z: -6, h: 3.5, r: 4.5 },  // Hidden Peak
+  { x: 23, z: -8, h: 4.2, r: 5.0 },  // Pfeifferhorn
+  { x: 22, z:-10, h: 4.0, r: 4.5 },  // White Baldy
+  { x: 21, z:-15, h: 3.5, r: 5.0 },  // Lone Peak
+  { x: 19, z:-24, h: 2.0, r: 6.0 },  // Box Elder
 ];
 
 /* ─── Front range terrain ────────────────────────────────────── */
@@ -95,22 +95,21 @@ function frontH(wx: number, wz: number): number {
   }
   const zFalloff = Math.pow(1 - zR2, 1.0);
 
-  // Base elevation — continuous body of mountains
-  const base = xFalloff * zFalloff * 4;
+  // Base elevation — high, continuous
+  const base = xFalloff * zFalloff * 6;
 
-  // Ridge crest at front
-  const ridgeDx = (wx - RIDGE_X) / 5;
-  const ridge = Math.exp(-ridgeDx * ridgeDx) * zFalloff * 2.5;
+  // Ridge crest at front — subtle
+  const ridgeDx = (wx - RIDGE_X) / 6;
+  const ridge = Math.exp(-ridgeDx * ridgeDx) * zFalloff * 1.5;
 
-  // Rolling wave undulation east of crest — continuous mountains
-  let wave = 0;
-  if (dx > 0) {
-    // Sine waves in both x and z create rolling peaks/valleys
-    const w1 = Math.sin(wx * 0.28 + wz * 0.12 + 1.5) * 0.5 + 0.5;
-    const w2 = Math.sin(wx * 0.15 - wz * 0.22 + 3.8) * 0.5 + 0.5;
-    const w3 = Math.sin(wx * 0.40 + wz * 0.08 + 0.7) * 0.3 + 0.5;
-    wave = (w1 * 1.8 + w2 * 1.4 + w3 * 0.8) * xFalloff * zFalloff;
-  }
+  // Rolling waves EVERYWHERE — the whole range undulates
+  const w1 = Math.sin(wx * 0.20 + wz * 0.14 + 1.5) * 0.5 + 0.5;
+  const w2 = Math.sin(wx * 0.12 - wz * 0.18 + 3.8) * 0.5 + 0.5;
+  const w3 = Math.sin(wx * 0.30 + wz * 0.06 + 0.7) * 0.4 + 0.5;
+  const w4 = Math.sin(wx * 0.08 + wz * 0.25 + 5.2) * 0.3 + 0.5;
+  // Waves are stronger on the back, subtle on the front
+  const waveMix = dx > 0 ? 1.0 : 0.3;
+  const wave = (w1 * 2.2 + w2 * 1.8 + w3 * 1.0 + w4 * 1.4) * xFalloff * zFalloff * waveMix;
 
   // Canyon cuts — only on the western front face
   let cut = 0;
@@ -162,10 +161,10 @@ function backH(wx: number, wz: number): number {
   const w1 = Math.sin(wx * 0.22 + wz * 0.15 + 4.2) * 0.5 + 0.5;
   const w2 = Math.sin(wx * 0.14 - wz * 0.20 + 1.7) * 0.5 + 0.5;
   const w3 = Math.sin(wx * 0.35 + wz * 0.10 + 6.1) * 0.4 + 0.5;
-  const wave = (w1 * 3 + w2 * 2.5 + w3 * 1.5) * env;
+  const wave = (w1 * 3.5 + w2 * 3.0 + w3 * 2.0) * env;
 
-  const base = env * 3;
-  const noise = fbm(wx * 0.10 + 9.1, wz * 0.08 + 6.3, 4) * 1.2 * env;
+  const base = env * 5;
+  const noise = fbm(wx * 0.10 + 9.1, wz * 0.08 + 6.3, 4) * 1.5 * env;
 
   return Math.max(0, base + wave + noise);
 }
