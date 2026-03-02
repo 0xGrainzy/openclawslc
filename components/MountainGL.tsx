@@ -3,50 +3,87 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
 /* ─────────────────────────────────────────────────────────────────
-   MountainGL — Three.js wireframe mountain.
-   Fixed behind all content. Scroll drives camera through 4 scenes.
-   Mouse creates a subtle look-around.
+   Wasatch Front — actual mountain range in 3D.
+   Real peak positions + elevations (Ben Lomond → Mt Nebo).
+   Scroll drives camera azimuth 180° around the range.
+   Mouse adds subtle look-around parallax.
+
+   Coordinate system:
+     X = west (–) to east (+)  — across the valley into the mountains
+     Y = elevation (up)
+     Z = south (–) to north (+)  — along the range
+   Origin ≈ SLC valley floor, centered on Lone Peak latitude.
 ───────────────────────────────────────────────────────────────── */
 
+/* Real Wasatch peaks — positions calibrated to actual geography */
 const PEAKS = [
-  { pos: 0.08, h: 0.30, w: 0.055 }, { pos: 0.18, h: 0.44, w: 0.058 },
-  { pos: 0.28, h: 0.60, w: 0.050 }, { pos: 0.37, h: 0.74, w: 0.044 },
-  { pos: 0.44, h: 0.86, w: 0.038 }, { pos: 0.51, h: 0.96, w: 0.032 },
-  { pos: 0.57, h: 1.00, w: 0.028 }, { pos: 0.63, h: 0.88, w: 0.036 },
-  { pos: 0.70, h: 0.76, w: 0.044 }, { pos: 0.78, h: 0.62, w: 0.052 },
-  { pos: 0.87, h: 0.46, w: 0.058 }, { pos: 0.94, h: 0.30, w: 0.052 },
+  //   x      z     h(0-1)  sx   sz   name
+  {x:  8, z:  42, h: 0.78, sx:  9, sz:  9 }, // Ben Lomond       9,712 ft
+  {x:  9, z:  28, h: 0.68, sx:  8, sz:  8 }, // Francis/Weber    9,000 ft area
+  {x: 10, z:  14, h: 0.71, sx:  7, sz:  7 }, // Grandeur Peak    8,299 ft
+  {x: 12, z:   7, h: 0.76, sx:  6, sz:  5 }, // Mount Olympus    9,026 ft
+  {x: 15, z:   3, h: 0.94, sx:  4, sz:  4 }, // Twin Peaks      11,330 ft
+  {x: 16, z:  -1, h: 0.93, sx:  4, sz:  4 }, // Lone Peak       11,253 ft
+  {x: 14, z:  -5, h: 0.82, sx:  5, sz:  5 }, // Draper ridge     9,800 ft
+  {x: 18, z: -16, h: 0.99, sx:  7, sz:  8 }, // Mt Timpanogos   11,752 ft
+  {x: 16, z: -30, h: 1.00, sx:  6, sz:  7 }, // Mount Nebo      11,928 ft  ← highest
 ];
 
-function terrain(nx: number): number {
-  let h = 0;
-  for (const p of PEAKS) h += p.h * Math.exp(-((nx - p.pos) ** 2) / (2 * p.w ** 2));
+/* Foothills profile — western bench land */
+function foothill(wx: number): number {
+  if (wx < -30) return 0;
+  if (wx <   0) return Math.max(0, (wx + 30) / 30) * 0.08;
+  return 0.08 + wx / 80 * 0.12;
+}
+
+function terrainHeight(wx: number, wz: number): number {
+  let h = foothill(wx);
+  for (const p of PEAKS) {
+    const dx = (wx - p.x) / p.sx;
+    const dz = (wz - p.z) / p.sz;
+    h += p.h * Math.exp(-(dx * dx + dz * dz));
+  }
   return Math.min(1, Math.max(0, h));
 }
 
-function heightColor(t: number): [number, number, number] {
-  // deep navy → electric blue → ice at peaks
-  const r = 0.04 + t * 0.24;
-  const g = 0.05 + t * 0.45;
-  const b = 0.35 + t * 0.60;
+function altColor(t: number): [number, number, number] {
+  // valley floor → mid-slope → high peaks
+  const r = 0.02 + t * 0.20;
+  const g = 0.04 + t * 0.38;
+  const b = 0.18 + t * 0.72;
   return [r, g, b];
 }
 
-// Camera keyframes: [posX, posY, posZ, tgtX, tgtY, tgtZ]
-const SCENES: [number, number, number, number, number, number][] = [
-  [  0,  6,  95,    0, 18,  0 ],  // Hero    – low, wide, side view
-  [-20, 30,  65,    8, 22,  0 ],  // Events  – ascending, tilting
-  [ 18, 52,  30,   -5, 30, -5 ],  // Builders– oblique near-peak
-  [  0, 78,  18,    0,  8,  0 ],  // Join    – overhead, abstract
+/* Camera orbit keyframes (spherical coords around range center) */
+const TARGET   = new THREE.Vector3(8, 14, 0);   // roughly Lone Peak area
+const KEYFRAMES = [
+  // theta (azimuth), phi (elevation angle), radius
+  { theta:  1.65, phi: 0.30, r: 165 },   // Hero:   looking east from SLC valley
+  { theta:  0.90, phi: 0.38, r: 140 },   // Events: SW angle, ascending
+  { theta:  0.10, phi: 0.50, r: 125 },   // Join:   nearly from the south
+  { theta: -0.75, phi: 0.42, r: 155 },   // Bottom: from the east (back of range)
 ];
 
-function lerpScene(scroll: number) {
-  // scroll: 0→1 across total page
-  const idx    = scroll * (SCENES.length - 1);
-  const a      = Math.floor(idx);
-  const b      = Math.min(a + 1, SCENES.length - 1);
-  const t      = idx - a;
-  const ease   = t * t * (3 - 2 * t); // smoothstep
-  return SCENES[a].map((v, i) => v + (SCENES[b][i] - v) * ease) as [number,number,number,number,number,number];
+function orbitPosition(theta: number, phi: number, r: number): THREE.Vector3 {
+  return new THREE.Vector3(
+    TARGET.x + r * Math.cos(phi) * Math.cos(theta),
+    TARGET.y + r * Math.sin(phi),
+    TARGET.z + r * Math.cos(phi) * Math.sin(theta),
+  );
+}
+
+function lerpKf(scroll: number) {
+  const idx  = scroll * (KEYFRAMES.length - 1);
+  const a    = Math.floor(idx);
+  const b    = Math.min(a + 1, KEYFRAMES.length - 1);
+  const t    = idx - a;
+  const ease = t * t * (3 - 2 * t); // smoothstep
+  const kA = KEYFRAMES[a], kB = KEYFRAMES[b];
+  return {
+    theta: kA.theta + (kB.theta - kA.theta) * ease,
+    phi:   kA.phi   + (kB.phi   - kA.phi)   * ease,
+    r:     kA.r     + (kB.r     - kA.r)     * ease,
+  };
 }
 
 export default function MountainGL() {
@@ -57,65 +94,64 @@ export default function MountainGL() {
     if (!el) return;
 
     /* ── Renderer ── */
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.setClearColor(0x000000, 1);
     el.appendChild(renderer.domElement);
 
-    /* ── Scene & Camera ── */
+    /* ── Scene ── */
     const scene  = new THREE.Scene();
-    scene.fog    = new THREE.FogExp2(0x000000, 0.007);
-    const camera = new THREE.PerspectiveCamera(52, 1, 0.1, 1000);
+    scene.fog    = new THREE.FogExp2(0x000000, 0.0045);
 
-    /* ── Terrain geometry ── */
-    const COLS   = window.innerWidth < 768 ? 90 : 160;
-    const ROWS   = window.innerWidth < 768 ? 18 : 28;
-    const W      = 180;
-    const D      = 50;
-    const MAX_H  = 52;
+    const camera = new THREE.PerspectiveCamera(48, 1, 0.5, 800);
+
+    /* ── Terrain mesh ── */
+    const mobile = window.innerWidth < 768;
+    const COLS   = mobile ? 100 : 180;   // X resolution (west→east)
+    const ROWS   = mobile ? 70  : 130;   // Z resolution (south→north)
+    const XMIN   = -55,  XMAX = 35;     // world X range
+    const ZMIN   = -45,  ZMAX = 50;     // world Z range
+    const MAX_H  = 58;                  // world units for peak elevation
 
     // Build height map
-    const H: number[][] = [];
-    for (let z = 0; z < ROWS; z++) {
-      H[z] = [];
-      for (let x = 0; x < COLS; x++) {
-        const nx = x / (COLS - 1);
-        const nz = z / (ROWS - 1);
-        const depth = Math.exp(-((nz - 0.5) ** 2) / (2 * 0.18 ** 2));
-        H[z][x] = terrain(nx) * MAX_H * depth;
-      }
-    }
+    const H: number[][] = Array.from({length: ROWS}, (_, zi) =>
+      Array.from({length: COLS}, (_, xi) => {
+        const wx = XMIN + (xi / (COLS - 1)) * (XMAX - XMIN);
+        const wz = ZMIN + (zi / (ROWS - 1)) * (ZMAX - ZMIN);
+        return terrainHeight(wx, wz) * MAX_H;
+      })
+    );
 
     const verts: number[]  = [];
     const colors: number[] = [];
 
-    function addSeg(
+    function seg(
       x0: number, y0: number, z0: number,
-      x1: number, y1: number, z1: number
+      x1: number, y1: number, z1: number,
     ) {
       verts.push(x0, y0, z0, x1, y1, z1);
-      const t0 = y0 / MAX_H, t1 = y1 / MAX_H;
-      const c0 = heightColor(t0), c1 = heightColor(t1);
-      colors.push(...c0, ...c1);
+      const [r0, g0, b0] = altColor(y0 / MAX_H);
+      const [r1, g1, b1] = altColor(y1 / MAX_H);
+      colors.push(r0, g0, b0, r1, g1, b1);
     }
 
-    // X-direction lines (along the ridgeline — the main visual)
-    for (let z = 0; z < ROWS; z++) {
-      const wz = -D / 2 + (z / (ROWS - 1)) * D;
-      for (let x = 0; x < COLS - 1; x++) {
-        const wx0 = -W / 2 + (x / (COLS - 1)) * W;
-        const wx1 = -W / 2 + ((x + 1) / (COLS - 1)) * W;
-        addSeg(wx0, H[z][x], wz, wx1, H[z][x + 1], wz);
+    // X-direction lines (ridgeline profiles — main visual along the range)
+    for (let zi = 0; zi < ROWS; zi++) {
+      const wz = ZMIN + (zi / (ROWS - 1)) * (ZMAX - ZMIN);
+      for (let xi = 0; xi < COLS - 1; xi++) {
+        const wx0 = XMIN + (xi / (COLS - 1)) * (XMAX - XMIN);
+        const wx1 = XMIN + ((xi + 1) / (COLS - 1)) * (XMAX - XMIN);
+        seg(wx0, H[zi][xi], wz, wx1, H[zi][xi + 1], wz);
       }
     }
 
-    // Z-direction lines (depth lines — gives 3D form)
-    for (let x = 0; x < COLS; x++) {
-      const wx = -W / 2 + (x / (COLS - 1)) * W;
-      for (let z = 0; z < ROWS - 1; z++) {
-        const wz0 = -D / 2 + (z / (ROWS - 1)) * D;
-        const wz1 = -D / 2 + ((z + 1) / (ROWS - 1)) * D;
-        addSeg(wx, H[z][x], wz0, wx, H[z + 1][x], wz1);
+    // Z-direction lines (depth cross-sections — gives 3D form)
+    for (let xi = 0; xi < COLS; xi++) {
+      const wx = XMIN + (xi / (COLS - 1)) * (XMAX - XMIN);
+      for (let zi = 0; zi < ROWS - 1; zi++) {
+        const wz0 = ZMIN + (zi / (ROWS - 1)) * (ZMAX - ZMIN);
+        const wz1 = ZMIN + ((zi + 1) / (ROWS - 1)) * (ZMAX - ZMIN);
+        seg(wx, H[zi][xi], wz0, wx, H[zi + 1][xi], wz1);
       }
     }
 
@@ -123,78 +159,68 @@ export default function MountainGL() {
     geo.setAttribute("position", new THREE.Float32BufferAttribute(verts, 3));
     geo.setAttribute("color",    new THREE.Float32BufferAttribute(colors, 3));
 
-    const mat   = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.85 });
-    const lines = new THREE.LineSegments(geo, mat);
-    scene.add(lines);
+    const mat = new THREE.LineBasicMaterial({
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.88,
+    });
+    scene.add(new THREE.LineSegments(geo, mat));
 
     /* ── State ── */
-    const state = {
-      scroll:  0,
-      mouse:   new THREE.Vector2(0, 0),
-      camPos:  new THREE.Vector3(),
-      camTgt:  new THREE.Vector3(),
-    };
-    const target = { pos: new THREE.Vector3(), tgt: new THREE.Vector3() };
+    const mouse  = new THREE.Vector2();
+    let scroll   = 0;
+    const camPos = new THREE.Vector3();
+    const camTgt = new THREE.Vector3(TARGET.x, TARGET.y, TARGET.z);
+
+    // Seed initial camera
+    const kf0 = lerpKf(0);
+    camPos.copy(orbitPosition(kf0.theta, kf0.phi, kf0.r));
 
     /* ── Resize ── */
     function resize() {
       if (!el) return;
-      const W = el.clientWidth, H = el.clientHeight;
-      renderer.setSize(W, H);
-      camera.aspect = W / H;
+      renderer.setSize(el.clientWidth, el.clientHeight);
+      camera.aspect = el.clientWidth / el.clientHeight;
       camera.updateProjectionMatrix();
     }
     resize();
     const ro = new ResizeObserver(resize);
     ro.observe(el);
 
-    /* ── Scroll ── */
-    function onScroll() {
-      const max   = document.body.scrollHeight - window.innerHeight;
-      state.scroll = max > 0 ? window.scrollY / max : 0;
-    }
-    window.addEventListener("scroll", onScroll, { passive: true });
-
-    /* ── Mouse ── */
-    function onMouse(e: MouseEvent) {
-      state.mouse.set(
+    /* ── Events ── */
+    const onScroll = () => {
+      const max = document.body.scrollHeight - window.innerHeight;
+      scroll = max > 0 ? window.scrollY / max : 0;
+    };
+    const onMouse = (e: MouseEvent) => {
+      mouse.set(
         (e.clientX / window.innerWidth)  * 2 - 1,
-        (e.clientY / window.innerHeight) * 2 - 1
+        (e.clientY / window.innerHeight) * 2 - 1,
       );
-    }
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("mousemove", onMouse, { passive: true });
 
-    /* ── RAF loop ── */
+    /* ── Render loop ── */
     let raf = 0;
-    const clock = new THREE.Clock();
-
     function animate() {
       raf = requestAnimationFrame(animate);
-      clock.getDelta(); // advance clock
 
-      const kf = lerpScene(state.scroll);
-      target.pos.set(kf[0], kf[1], kf[2]);
-      target.tgt.set(kf[3], kf[4], kf[5]);
+      const kf  = lerpKf(scroll);
+      const tgt = orbitPosition(
+        kf.theta + mouse.x * 0.05,
+        kf.phi   - mouse.y * 0.03,
+        kf.r,
+      );
 
-      // Mouse offset — subtle look-around
-      target.pos.x += state.mouse.x * 4;
-      target.pos.y -= state.mouse.y * 2.5;
+      camPos.lerp(tgt, 0.028);
+      camTgt.lerp(TARGET, 0.028);
 
-      // Smooth camera
-      state.camPos.lerp(target.pos, 0.035);
-      state.camTgt.lerp(target.tgt, 0.035);
-
-      camera.position.copy(state.camPos);
-      camera.lookAt(state.camTgt);
+      camera.position.copy(camPos);
+      camera.lookAt(camTgt);
 
       renderer.render(scene, camera);
     }
-
-    // Seed initial camera
-    const init = lerpScene(0);
-    state.camPos.set(init[0], init[1], init[2]);
-    state.camTgt.set(init[3], init[4], init[5]);
-
     animate();
 
     return () => {
@@ -205,7 +231,7 @@ export default function MountainGL() {
       geo.dispose();
       mat.dispose();
       renderer.dispose();
-      el.removeChild(renderer.domElement);
+      if (el.contains(renderer.domElement)) el.removeChild(renderer.domElement);
     };
   }, []);
 
