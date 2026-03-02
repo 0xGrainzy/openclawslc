@@ -281,7 +281,6 @@ export default function MountainGL({ onCameraUpdate }: Props) {
       }
     }
     // Keep a copy of base positions for ripple animation
-    const frontBasePos = new Float32Array(verts);
 
     /* ─── Build back range mesh ─────────────────────────────── */
     const B_COLS = mobile ? 100 : 160;
@@ -318,12 +317,62 @@ export default function MountainGL({ onCameraUpdate }: Props) {
       }
     }
 
-    const backBasePos = new Float32Array(bVerts);
     const bGeo = new THREE.BufferGeometry();
     bGeo.setAttribute("position", new THREE.Float32BufferAttribute(bVerts, 3));
     bGeo.setAttribute("color", new THREE.Float32BufferAttribute(bCols, 3));
     const bMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.45 });
     scene.add(new THREE.LineSegments(bGeo, bMat));
+
+    /* ─── 20 background ridgeline layers ────────────────────── */
+    const layerGeos: THREE.BufferGeometry[] = [];
+    const layerMats: THREE.LineBasicMaterial[] = [];
+    const NUM_BG_LAYERS = 20;
+
+    for (let layer = 0; layer < NUM_BG_LAYERS; layer++) {
+      const lx = 65 + layer * 12;  // each layer 12 units further east
+      const lOp = 0.35 - layer * 0.014; // fade from 0.35 → ~0.07
+      const lHeight = 8 + layer * 1.5;  // taller as they go back
+      const lSeed = layer * 7.3 + 2.1;
+      const pts: number[] = [];
+      const cols: number[] = [];
+      const zStart = -48, zEnd = 44;
+      const steps = mobile ? 80 : 140;
+
+      for (let i = 0; i < steps; i++) {
+        const wz0 = zStart + (i / (steps - 1)) * (zEnd - zStart);
+        const wz1 = zStart + ((i + 1) / (steps - 1)) * (zEnd - zStart);
+        const dz0 = wz0 * Z_STRETCH, dz1 = wz1 * Z_STRETCH;
+
+        // Rolling ridgeline — multiple sine waves with layer-unique phase
+        const h = (z: number) => {
+          const zN = (z - (-2)) / 42;
+          if (Math.abs(zN) > 1) return 0;
+          const env = Math.pow(1 - zN * zN, 0.6);
+          const w1 = (Math.sin(z * 0.18 + lSeed) * 0.5 + 0.5);
+          const w2 = (Math.sin(z * 0.30 - lSeed * 0.7) * 0.4 + 0.5);
+          const w3 = (Math.sin(z * 0.12 + lSeed * 1.3) * 0.3 + 0.5);
+          const n = fbm(lx * 0.06 + 3.3, z * 0.08 + lSeed, 3) * 2;
+          return (w1 * 3 + w2 * 2.5 + w3 * 1.5 + n + 3) * env;
+        };
+
+        const y0 = h(wz0), y1 = h(wz1);
+        pts.push(lx, y0, dz0, lx, y1, dz1);
+        const t0 = y0 / lHeight, t1 = y1 / lHeight;
+        const brightness = Math.max(0.03, lOp);
+        cols.push(
+          0.01 + t0 * 0.12 * brightness, 0.02 + t0 * 0.18 * brightness, 0.10 + t0 * 0.35 * brightness,
+          0.01 + t1 * 0.12 * brightness, 0.02 + t1 * 0.18 * brightness, 0.10 + t1 * 0.35 * brightness,
+        );
+      }
+
+      const lGeo = new THREE.BufferGeometry();
+      lGeo.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
+      lGeo.setAttribute("color", new THREE.Float32BufferAttribute(cols, 3));
+      const lMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: Math.max(0.05, lOp) });
+      scene.add(new THREE.LineSegments(lGeo, lMat));
+      layerGeos.push(lGeo);
+      layerMats.push(lMat);
+    }
 
     /* ─── Skirt lines ────────────────────────────────────────── */
     const skirtVerts: number[] = [], skirtCols: number[] = [];
@@ -350,9 +399,8 @@ export default function MountainGL({ onCameraUpdate }: Props) {
     scene.add(new THREE.LineSegments(skirtGeo, skirtMat));
 
     /* ─── Front range mesh ───────────────────────────────────── */
-    const frontPosArray = new Float32Array(verts);
     const geo = new THREE.BufferGeometry();
-    geo.setAttribute("position", new THREE.BufferAttribute(frontPosArray, 3));
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(verts, 3));
     geo.setAttribute("color", new THREE.Float32BufferAttribute(colA, 3));
     const mat = new THREE.LineBasicMaterial({ vertexColors: true, opacity: 0.90, transparent: true });
     scene.add(new THREE.LineSegments(geo, mat));
@@ -440,108 +488,43 @@ export default function MountainGL({ onCameraUpdate }: Props) {
       camera.position.copy(camPos);
       camera.lookAt(TARGET);
 
-      // Raycast mouse onto ground plane to find world position
+      // Raycast mouse onto ground plane
       raycaster.setFromCamera(mouse, camera);
       const hitPoint = new THREE.Vector3();
       if (raycaster.ray.intersectPlane(groundPlane, hitPoint)) {
         mouseWorld.copy(hitPoint);
-        // Add ripple source every few frames
-        if (clock - lastRippleTime > 0.08) {
+        if (clock - lastRippleTime > 0.06) {
           ripples.push({ x: hitPoint.x, z: hitPoint.z, t: clock });
           lastRippleTime = clock;
-          // Keep max 30 ripples
-          if (ripples.length > 30) ripples.shift();
+          if (ripples.length > 10) ripples.shift();
         }
-      } else {
       }
 
-      // Animate grid vertices — ripple waves from mouse/trail
+      // Grid ripples — fast, lightweight
       const pos = gridGeo.attributes.position as THREE.BufferAttribute;
       const arr = pos.array as Float32Array;
       for (let i = 0; i < arr.length; i += 3) {
         const vx = gridPositions[i];
         const vz = gridPositions[i + 2];
         let yOff = 0;
-
-        // Sum ripple contributions from all active ripples
         for (const rip of ripples) {
           const age = clock - rip.t;
-          if (age > 4) continue; // ripple dies after 4s
-          const dx = vx - rip.x;
-          const dz = vz - rip.z;
+          if (age > 2.5) continue;
+          const dx = vx - rip.x, dz = vz - rip.z;
           const dist = Math.sqrt(dx * dx + dz * dz);
-          const rippleRadius = age * 35; // expanding ring
+          const rippleRadius = age * 55; // faster propagation
           const ringDist = Math.abs(dist - rippleRadius);
-          const ringWidth = 12;
-          if (ringDist < ringWidth) {
-            const ringStrength = (1 - ringDist / ringWidth);
-            const decay = Math.exp(-age * 1.2); // fade over time
-            const distDecay = Math.exp(-dist * 0.008); // fade with distance
-            yOff += Math.sin(dist * 0.3 - age * 6) * ringStrength * decay * distDecay * 1.2;
+          if (ringDist < 14) {
+            const rs = (1 - ringDist / 14);
+            yOff += Math.sin(dist * 0.35 - age * 8) * rs * Math.exp(-age * 1.8) * Math.exp(-dist * 0.01) * 1.4;
           }
         }
-
-        // Subtle ambient wave even without mouse
-        yOff += Math.sin(vx * 0.04 + clock * 0.8) * Math.sin(vz * 0.04 + clock * 0.6) * 0.15;
-
+        yOff += Math.sin(vx * 0.04 + clock * 0.8) * Math.sin(vz * 0.04 + clock * 0.6) * 0.12;
         arr[i + 1] = yOff;
       }
       pos.needsUpdate = true;
 
-      // Expire old ripples
-      while (ripples.length > 0 && clock - ripples[0].t > 4) ripples.shift();
-
-      // Ripple the mountain meshes too
-      function applyMtnRipple(baseArr: Float32Array, liveArr: Float32Array, geoObj: THREE.BufferGeometry) {
-        for (let i = 0; i < liveArr.length; i += 3) {
-          const bx = baseArr[i], by = baseArr[i + 1], bz = baseArr[i + 2];
-          let yOff = 0;
-          for (const rip of ripples) {
-            const age = clock - rip.t;
-            if (age > 4) continue;
-            const dx = bx - rip.x;
-            const dz = bz - rip.z;
-            const dist = Math.sqrt(dx * dx + dz * dz);
-            const rippleRadius = age * 35;
-            const ringDist = Math.abs(dist - rippleRadius);
-            const ringWidth = 15;
-            if (ringDist < ringWidth) {
-              const ringStrength = (1 - ringDist / ringWidth);
-              const decay = Math.exp(-age * 1.0);
-              const distDecay = Math.exp(-dist * 0.006);
-              // Scale wave by base height — higher terrain gets bigger waves
-              const heightScale = 0.5 + (by / MAX_H) * 1.5;
-              yOff += Math.sin(dist * 0.25 - age * 5) * ringStrength * decay * distDecay * 0.8 * heightScale;
-            }
-          }
-          // Ambient breathing
-          yOff += Math.sin(bx * 0.05 + clock * 0.6) * Math.sin(bz * 0.04 + clock * 0.5) * 0.12;
-          liveArr[i + 1] = by + yOff;
-        }
-        (geoObj.attributes.position as THREE.BufferAttribute).needsUpdate = true;
-      }
-      applyMtnRipple(frontBasePos, frontPosArray, geo);
-
-      // Back range ripple (subtler)
-      const bPosArr = bGeo.attributes.position.array as Float32Array;
-      for (let i = 0; i < bPosArr.length; i += 3) {
-        const by = backBasePos[i + 1];
-        const bx = backBasePos[i], bz = backBasePos[i + 2];
-        let yOff = Math.sin(bx * 0.04 + clock * 0.4) * Math.sin(bz * 0.03 + clock * 0.35) * 0.10;
-        for (const rip of ripples) {
-          const age = clock - rip.t;
-          if (age > 4) continue;
-          const dist = Math.sqrt((bx - rip.x) * (bx - rip.x) + (bz - rip.z) * (bz - rip.z));
-          const rippleRadius = age * 35;
-          const ringDist = Math.abs(dist - rippleRadius);
-          if (ringDist < 18) {
-            const rs = (1 - ringDist / 18) * Math.exp(-age * 1.2) * Math.exp(-dist * 0.008);
-            yOff += Math.sin(dist * 0.2 - age * 4.5) * rs * 0.5;
-          }
-        }
-        bPosArr[i + 1] = by + yOff;
-      }
-      (bGeo.attributes.position as THREE.BufferAttribute).needsUpdate = true;
+      while (ripples.length > 0 && clock - ripples[0].t > 2.5) ripples.shift();
 
       renderer.render(scene, camera);
       if (el) onCameraUpdate?.({ camera, width: el.clientWidth, height: el.clientHeight });
@@ -555,6 +538,8 @@ export default function MountainGL({ onCameraUpdate }: Props) {
       ro.disconnect();
       geo.dispose(); mat.dispose();
       bGeo.dispose(); bMat.dispose();
+      layerGeos.forEach(g => g.dispose());
+      layerMats.forEach(m => m.dispose());
       skirtGeo.dispose(); skirtMat.dispose();
       gridGeo.dispose(); gridMat.dispose();
       renderer.dispose();
