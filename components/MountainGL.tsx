@@ -81,8 +81,8 @@ function terrainH(wx: number, wz: number): number {
   }
 
   // ── Edge tapers — no hard boundaries anywhere ──────────────
-  // East taper: smooth fade from x=18 → 0 at x=28
-  const xFade = 1 - Math.max(0, Math.min(1, (wx - 18) / 10));
+  // East taper: smooth fade from x=30 → 0 at x=48 (full back-side terrain)
+  const xFade = 1 - Math.max(0, Math.min(1, (wx - 30) / 18));
   // West taper: fade in from XMIN → full at XMIN+30
   const xWest = Math.max(0, Math.min(1, (wx - XMIN_CONST) / 30));
   // North/south: 30-unit ramp so edges are far from peaks
@@ -122,18 +122,24 @@ const TARGET = new THREE.Vector3(12, MAX_H / 2, -1);
   camera well above the range, looking steeply down.
   S/N views drop phi so the low ridge has some drama end-on.
 */
+/*
+  ALL views elevated (phi ≥ 0.38).
+  The range runs N-S, so S/N views MUST be from above or
+  the ridge collapses into a vertical spike.
+  Larger r on S/N to show the full length from above.
+*/
 const KF_MOB = [
-  { theta: Math.PI,          phi: 0.45, r:  80 }, // West  — Andy Earl oblique (hero)
-  { theta: Math.PI * 1.50,   phi: 0.18, r:  90 }, // South — end-on, gentle ridge profile
-  { theta: Math.PI * 2.00,   phi: 0.44, r: 120 }, // East  — back face from above
-  { theta: Math.PI * 2.50,   phi: 0.16, r:  92 }, // North — end-on north side
-  { theta: Math.PI * 3.00,   phi: 0.45, r:  80 }, // West  — full circle
+  { theta: Math.PI,          phi: 0.45, r:  78 }, // West  — SLC valley oblique
+  { theta: Math.PI * 1.50,   phi: 0.48, r: 105 }, // South — elevated, range stretches away
+  { theta: Math.PI * 2.00,   phi: 0.44, r:  85 }, // East  — back face from above
+  { theta: Math.PI * 2.50,   phi: 0.46, r: 108 }, // North — elevated, range stretches away
+  { theta: Math.PI * 3.00,   phi: 0.45, r:  78 }, // West  — full circle
 ];
 const KF_DESK = [
   { theta: Math.PI,          phi: 0.40, r: 108 }, // West
-  { theta: Math.PI * 1.50,   phi: 0.14, r: 125 }, // South
-  { theta: Math.PI * 2.00,   phi: 0.42, r: 155 }, // East
-  { theta: Math.PI * 2.50,   phi: 0.12, r: 128 }, // North
+  { theta: Math.PI * 1.50,   phi: 0.44, r: 140 }, // South
+  { theta: Math.PI * 2.00,   phi: 0.40, r: 115 }, // East
+  { theta: Math.PI * 2.50,   phi: 0.42, r: 142 }, // North
   { theta: Math.PI * 3.00,   phi: 0.40, r: 108 }, // West
 ];
 
@@ -186,7 +192,7 @@ export default function MountainGL({ onCameraUpdate }: Props) {
     const COLS = mobile ? 140 : 200;
     const ROWS = mobile ? 100 : 150;
     // Wider N-S extent so 30-unit tapers don't crowd the peaks
-    const XMIN = XMIN_CONST, XMAX = 28;
+    const XMIN = XMIN_CONST, XMAX = 50; // extends east for full back-side terrain
     const ZMIN = ZMIN_CONST, ZMAX = ZMAX_CONST;
 
     const H: number[][] = Array.from({ length: ROWS }, (_, zi) =>
