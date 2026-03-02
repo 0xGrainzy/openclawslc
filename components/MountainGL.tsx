@@ -9,8 +9,8 @@ import * as THREE from "three";
   Peaks should be POINTY, not flat-topped.
 */
 
-const MAX_H = 28;
-const Z_STRETCH = 3.0;
+const MAX_H = 14;
+const Z_STRETCH = 4.0;
 
 /* ─── Noise ──────────────────────────────────────────────────── */
 function hash2d(ix: number, iz: number): number {
@@ -51,21 +51,21 @@ const CANYONS = [
   { z: -18, depth: 0.20, width: 1.8 },
 ];
 
-/* ─── Front range: Peaks — sharp, tall ───────────────────────── */
+/* ─── Front range: Peaks — moderate, rounded ─────────────────── */
 const PEAKS = [
-  { x: 14, z:+20, h: 7,  r: 3.0 },  // Grandeur
-  { x: 14, z:+13, h: 7,  r: 2.8 },  // Mt Aire
-  { x: 16, z: +7, h:12,  r: 2.8 },  // Olympus
-  { x: 18, z: +6, h:15,  r: 2.4 },  // Gobblers Knob
-  { x: 18, z: +5, h:15,  r: 2.4 },  // Raymond
-  { x: 19, z: +1, h:16,  r: 2.5 },  // Kessler
-  { x: 20, z: -2, h:20,  r: 2.5 },  // Superior
-  { x: 22, z: -3, h:24,  r: 2.8 },  // Twin Peaks — highest
-  { x: 22, z: -6, h:19,  r: 2.5 },  // Hidden Peak
-  { x: 23, z: -8, h:23,  r: 2.6 },  // Pfeifferhorn
-  { x: 22, z:-10, h:21,  r: 2.5 },  // White Baldy
-  { x: 21, z:-15, h:18,  r: 2.8 },  // Lone Peak
-  { x: 19, z:-24, h:10,  r: 3.5 },  // Box Elder
+  { x: 14, z:+20, h: 3,  r: 4.5 },  // Grandeur
+  { x: 14, z:+13, h: 3,  r: 4.0 },  // Mt Aire
+  { x: 16, z: +7, h: 5,  r: 4.0 },  // Olympus
+  { x: 18, z: +6, h: 6,  r: 3.5 },  // Gobblers Knob
+  { x: 18, z: +5, h: 6,  r: 3.5 },  // Raymond
+  { x: 19, z: +1, h: 6.5,r: 3.5 },  // Kessler
+  { x: 20, z: -2, h: 8,  r: 3.5 },  // Superior
+  { x: 22, z: -3, h: 9,  r: 4.0 },  // Twin Peaks — highest
+  { x: 22, z: -6, h: 7,  r: 3.5 },  // Hidden Peak
+  { x: 23, z: -8, h: 8.5,r: 3.8 },  // Pfeifferhorn
+  { x: 22, z:-10, h: 8,  r: 3.5 },  // White Baldy
+  { x: 21, z:-15, h: 7,  r: 4.0 },  // Lone Peak
+  { x: 19, z:-24, h: 4,  r: 5.0 },  // Box Elder
 ];
 
 /* ─── Front range terrain ────────────────────────────────────── */
@@ -78,7 +78,7 @@ function frontH(wx: number, wz: number): number {
   const eastHW = 55;  // massive backcountry — rolling mountains extend far east
   const hw = dx < 0 ? westHW : eastHW;
   const xNorm = dx / hw;
-  const zNorm = (wz - (-2)) / 30;
+  const zNorm = (wz - (-2)) / 42;
 
   // N-S taper only (no hard east cutoff — let it roll)
   const zR2 = zNorm * zNorm;
@@ -96,11 +96,11 @@ function frontH(wx: number, wz: number): number {
   const zFalloff = Math.pow(1 - zR2, 1.0);
 
   // Base elevation — continuous body of mountains
-  const base = xFalloff * zFalloff * 9;
+  const base = xFalloff * zFalloff * 4;
 
   // Ridge crest at front
   const ridgeDx = (wx - RIDGE_X) / 5;
-  const ridge = Math.exp(-ridgeDx * ridgeDx) * zFalloff * 5;
+  const ridge = Math.exp(-ridgeDx * ridgeDx) * zFalloff * 2.5;
 
   // Rolling wave undulation east of crest — continuous mountains
   let wave = 0;
@@ -109,7 +109,7 @@ function frontH(wx: number, wz: number): number {
     const w1 = Math.sin(wx * 0.28 + wz * 0.12 + 1.5) * 0.5 + 0.5;
     const w2 = Math.sin(wx * 0.15 - wz * 0.22 + 3.8) * 0.5 + 0.5;
     const w3 = Math.sin(wx * 0.40 + wz * 0.08 + 0.7) * 0.3 + 0.5;
-    wave = (w1 * 3.5 + w2 * 2.8 + w3 * 1.5) * xFalloff * zFalloff;
+    wave = (w1 * 1.8 + w2 * 1.4 + w3 * 0.8) * xFalloff * zFalloff;
   }
 
   // Canyon cuts — only on the western front face
@@ -125,13 +125,13 @@ function frontH(wx: number, wz: number): number {
   let peaks = 0;
   for (const p of PEAKS) {
     const pdx = (wx - p.x) / p.r, pdz = (wz - p.z) / p.r;
-    peaks += p.h * Math.exp(-(pdx * pdx + pdz * pdz) * 1.2);
+    peaks += p.h * Math.exp(-(pdx * pdx + pdz * pdz) * 0.7);
   }
 
   // Texture noise
   const envelope = xFalloff * zFalloff;
-  const noise = fbm(wx * 0.12 + 5.3, wz * 0.09 + 3.7, 5) * 2.8 * envelope;
-  const detail = fbm(wx * 0.22 + 11.0, wz * 0.18 + 7.0, 4) * 1.2 * envelope;
+  const noise = fbm(wx * 0.12 + 5.3, wz * 0.09 + 3.7, 5) * 1.4 * envelope;
+  const detail = fbm(wx * 0.22 + 11.0, wz * 0.18 + 7.0, 4) * 0.6 * envelope;
 
   const h = base + ridge + wave + peaks + noise + detail - cut;
 
@@ -150,7 +150,7 @@ function backH(wx: number, wz: number): number {
   const dx = wx - BACK_CX;
   const hw = 30;  // wide
   const xNorm = dx / hw;
-  const zNorm = (wz - (-3)) / 34;
+  const zNorm = (wz - (-3)) / 46;
   const xR2 = xNorm * xNorm;
   const zR2 = zNorm * zNorm;
   if (xR2 >= 1 || zR2 >= 1) return 0;
@@ -163,10 +163,10 @@ function backH(wx: number, wz: number): number {
   const w1 = Math.sin(wx * 0.22 + wz * 0.15 + 4.2) * 0.5 + 0.5;
   const w2 = Math.sin(wx * 0.14 - wz * 0.20 + 1.7) * 0.5 + 0.5;
   const w3 = Math.sin(wx * 0.35 + wz * 0.10 + 6.1) * 0.4 + 0.5;
-  const wave = (w1 * 6 + w2 * 5 + w3 * 3) * env;
+  const wave = (w1 * 3 + w2 * 2.5 + w3 * 1.5) * env;
 
-  const base = env * 5;
-  const noise = fbm(wx * 0.10 + 9.1, wz * 0.08 + 6.3, 4) * 2.5 * env;
+  const base = env * 3;
+  const noise = fbm(wx * 0.10 + 9.1, wz * 0.08 + 6.3, 4) * 1.2 * env;
 
   return Math.max(0, base + wave + noise);
 }
@@ -247,7 +247,7 @@ export default function MountainGL({ onCameraUpdate }: Props) {
     const COLS = mobile ? 220 : 360;
     const ROWS = mobile ? 160 : 250;
     const XMIN = -2, XMAX = 72;
-    const ZMIN = -30, ZMAX = 26;
+    const ZMIN = -42, ZMAX = 38;
 
     const H: number[][] = Array.from({ length: ROWS }, (_, zi) =>
       Array.from({ length: COLS }, (_, xi) => {
@@ -283,7 +283,7 @@ export default function MountainGL({ onCameraUpdate }: Props) {
     const B_COLS = mobile ? 100 : 160;
     const B_ROWS = mobile ? 80 : 130;
     const BX0 = 30, BX1 = 90;
-    const BZ0 = -32, BZ1 = 28;
+    const BZ0 = -44, BZ1 = 40;
 
     const BH: number[][] = Array.from({ length: B_ROWS }, (_, zi) =>
       Array.from({ length: B_COLS }, (_, xi) => {
