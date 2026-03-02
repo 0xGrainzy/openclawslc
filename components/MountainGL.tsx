@@ -55,21 +55,21 @@ const CANYONS = [
   { z: -18, depth: 0.18, width: 1.8, x0:  0, x1: 16 },
 ];
 
-/* ─── Peak bumps ─────────────────────────────────────────────── */
+/* ─── Peak bumps — taller for distinct summits ───────────────── */
 const BUMPS = [
-  { x:  6, z:+20, h:0.06, r:3.5 },  // Grandeur
-  { x:  8, z:+13, h:0.07, r:3.0 },  // Mt Aire
-  { x: 10, z: +7, h:0.13, r:3.2 },  // Olympus
-  { x: 14, z: +6, h:0.15, r:2.8 },  // Gobblers Knob
-  { x: 15, z: +5, h:0.16, r:2.8 },  // Raymond
-  { x: 16, z: +1, h:0.17, r:2.8 },  // Kessler
-  { x: 18, z: -2, h:0.24, r:3.0 },  // Superior
-  { x: 20, z: -3, h:0.30, r:3.2 },  // Broads Fork Twins
-  { x: 21, z: -6, h:0.22, r:2.8 },  // Hidden Peak
-  { x: 22, z: -8, h:0.28, r:3.0 },  // Pfeifferhorn
-  { x: 21, z:-10, h:0.25, r:2.8 },  // White Baldy
-  { x: 20, z:-15, h:0.22, r:3.2 },  // Lone Peak
-  { x: 18, z:-24, h:0.12, r:4.0 },  // Box Elder
+  { x:  6, z:+20, h:0.10, r:3.5 },  // Grandeur
+  { x:  8, z:+13, h:0.10, r:3.0 },  // Mt Aire
+  { x: 10, z: +7, h:0.18, r:3.2 },  // Olympus
+  { x: 14, z: +6, h:0.20, r:2.8 },  // Gobblers Knob
+  { x: 15, z: +5, h:0.21, r:2.8 },  // Raymond
+  { x: 16, z: +1, h:0.22, r:2.8 },  // Kessler
+  { x: 18, z: -2, h:0.30, r:3.0 },  // Superior
+  { x: 20, z: -3, h:0.38, r:3.2 },  // Broads Fork Twins
+  { x: 21, z: -6, h:0.28, r:2.8 },  // Hidden Peak
+  { x: 22, z: -8, h:0.36, r:3.0 },  // Pfeifferhorn
+  { x: 21, z:-10, h:0.32, r:2.8 },  // White Baldy
+  { x: 20, z:-15, h:0.28, r:3.2 },  // Lone Peak
+  { x: 18, z:-24, h:0.16, r:4.0 },  // Box Elder
 ];
 
 /* ─── Terrain ────────────────────────────────────────────────── */
@@ -122,19 +122,24 @@ function altColor(t: number): [number, number, number] {
 /* ─── Camera ─────────────────────────────────────────────────── */
 const TARGET = new THREE.Vector3(RIDGE_X - 6, MAX_H * 0.18, -2 * Z_STRETCH);
 
+/*
+  Hero: NW angle — camera west-northwest of range.
+  Grandeur (north) is closest/left, Lone Peak (south) recedes to back/right.
+  Like looking left from the Utah State Capitol.
+*/
 const KF_MOB = [
-  { theta: Math.PI + 0.20, phi: 0.34, r: 130 },
-  { theta: Math.PI * 1.50, phi: 0.40, r: 145 },
-  { theta: Math.PI * 2.00, phi: 0.48, r: 155 },
-  { theta: Math.PI * 2.50, phi: 0.40, r: 145 },
-  { theta: Math.PI * 3.20, phi: 0.34, r: 130 },
+  { theta: Math.PI - 0.25, phi: 0.32, r: 130 },  // WNW — capitol view
+  { theta: Math.PI * 0.50, phi: 0.40, r: 145 },  // North
+  { theta: Math.PI * 0.00, phi: 0.48, r: 155 },  // East — backcountry
+  { theta: Math.PI * 1.50, phi: 0.40, r: 145 },  // South
+  { theta: Math.PI * 0.75 + Math.PI, phi: 0.32, r: 130 },  // WNW return
 ];
 const KF_DESK = [
-  { theta: Math.PI + 0.20, phi: 0.30, r: 150 },
-  { theta: Math.PI * 1.50, phi: 0.36, r: 170 },
-  { theta: Math.PI * 2.00, phi: 0.42, r: 185 },
-  { theta: Math.PI * 2.50, phi: 0.36, r: 170 },
-  { theta: Math.PI * 3.20, phi: 0.30, r: 150 },
+  { theta: Math.PI - 0.25, phi: 0.28, r: 150 },  // WNW
+  { theta: Math.PI * 0.50, phi: 0.34, r: 170 },  // North
+  { theta: Math.PI * 0.00, phi: 0.42, r: 185 },  // East
+  { theta: Math.PI * 1.50, phi: 0.34, r: 170 },  // South
+  { theta: Math.PI * 0.75 + Math.PI, phi: 0.28, r: 150 },  // WNW return
 ];
 
 function orbitPos(theta: number, phi: number, r: number): THREE.Vector3 {
@@ -172,7 +177,7 @@ export default function MountainGL({ onCameraUpdate }: Props) {
     const mobile = window.innerWidth < 768;
     const KFS = mobile ? KF_MOB : KF_DESK;
     const FOV = mobile ? 62 : 46;
-    const FOG = mobile ? 0.0006 : 0.0008;
+    const FOG = mobile ? 0.0035 : 0.0028;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
@@ -181,7 +186,7 @@ export default function MountainGL({ onCameraUpdate }: Props) {
 
     const scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(0x000000, FOG);
-    const camera = new THREE.PerspectiveCamera(FOV, 1, 0.5, 800);
+    const camera = new THREE.PerspectiveCamera(FOV, 1, 0.5, 1200);
 
     /* ─── Mountain terrain ──────────────────────────────────── */
     const COLS = mobile ? 180 : 300;
@@ -292,28 +297,29 @@ export default function MountainGL({ onCameraUpdate }: Props) {
     const mat = new THREE.LineBasicMaterial({ vertexColors: true, opacity: 0.92, transparent: true });
     scene.add(new THREE.LineSegments(geo, mat));
 
-    /* ─── SLC Valley grid ────────────────────────────────────── */
+    /* ─── Ground plane — extends "infinitely" in all directions ─ */
     const gridVerts: number[] = [], gridCols: number[] = [];
-    const GX0 = -70, GX1 = 2;
-    const GZ0 = -52 * Z_STRETCH, GZ1 = 44 * Z_STRETCH;
-    const GRID_SP = 3.2;
-    const gOp = 0.12;
+    // Massive extent — fog hides the edges
+    const GX0 = -300, GX1 = 300;
+    const GZ0 = -300, GZ1 = 300;
+    const GRID_SP = 3.0;
+    const gOp = 0.10;
 
-    // N-S streets
-    for (let x = GX0; x <= GX1; x += GRID_SP) {
-      gridVerts.push(x, 0, GZ0, x, 0, GZ1);
-      gridCols.push(0.06*gOp, 0.12*gOp, 0.35*gOp, 0.06*gOp, 0.12*gOp, 0.35*gOp);
-    }
-    // E-W avenues
+    // Horizontal lines (E-W) — these run parallel to mountain base
     for (let z = GZ0; z <= GZ1; z += GRID_SP) {
       gridVerts.push(GX0, 0, z, GX1, 0, z);
       gridCols.push(0.06*gOp, 0.12*gOp, 0.35*gOp, 0.06*gOp, 0.12*gOp, 0.35*gOp);
     }
+    // Vertical lines (N-S)
+    for (let x = GX0; x <= GX1; x += GRID_SP) {
+      gridVerts.push(x, 0, GZ0, x, 0, GZ1);
+      gridCols.push(0.06*gOp, 0.12*gOp, 0.35*gOp, 0.06*gOp, 0.12*gOp, 0.35*gOp);
+    }
 
-    // Main roads brighter
-    for (const x of [-55, -38, -20, -5]) {
-      gridVerts.push(x, 0.02, GZ0, x, 0.02, GZ1);
-      const b = 0.20;
+    // Brighter main roads near the valley
+    for (const x of [-60, -40, -20, -5, 0]) {
+      gridVerts.push(x, 0.03, GZ0, x, 0.03, GZ1);
+      const b = 0.18;
       gridCols.push(0.06*b, 0.12*b, 0.45*b, 0.06*b, 0.12*b, 0.45*b);
     }
 

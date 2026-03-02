@@ -340,7 +340,7 @@ export default function Home() {
               <p style={{...MONO,fontSize:"clamp(0.88rem,2.0vw,1.08rem)",
                 color:"rgba(255,255,255,0.92)",maxWidth:380,lineHeight:1.85,
                 marginBottom:"1.5rem",fontWeight:500}}>
-                Salt Lake City&apos;s AI and crypto builder community.
+                Salt Lake City&apos;s AI community.
               </p>
               <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
                 <button onClick={()=>goTo(SECTIONS.events)}
