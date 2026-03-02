@@ -26,19 +26,33 @@ import * as THREE from "three";
 const MAX_H = 58;
 
 const PEAKS = [
+  // ── North (left on screen when viewed from west) ──────────────
   { x:  8, z:  42, h: 0.78, sx:  9, sz:  9 }, // Ben Lomond       9,712′
-  { x:  9, z:  28, h: 0.68, sx:  8, sz:  8 }, // Farmington
-  { x: 10, z:  14, h: 0.71, sx:  7, sz:  7 }, // Grandeur Peak
-  { x: 12, z:   7, h: 0.76, sx:  6, sz:  5 }, // Mount Olympus     9,026′
-  { x: 15, z:   3, h: 0.94, sx:  4, sz:  4 }, // Twin Peaks       11,330′
-  { x: 16, z:  -1, h: 0.93, sx:  4, sz:  4 }, // Lone Peak        11,253′
-  { x: 14, z:  -5, h: 0.82, sx:  5, sz:  5 }, // Draper ridge
+  { x: 10, z:  32, h: 0.72, sx:  8, sz:  7 }, // Francis Peak area
+  { x: 11, z:  22, h: 0.76, sx:  7, sz:  6 }, // Thurston Peak
+  { x: 12, z:  14, h: 0.80, sx:  6, sz:  6 }, // Grandeur / upper SLC
+  // ── Central (the dramatic SLC skyline) ───────────────────────
+  { x: 13, z:   9, h: 0.85, sx:  5, sz:  5 }, // Gobblers Knob
+  { x: 12, z:   7, h: 0.80, sx:  5, sz:  4 }, // Mount Olympus     9,026′
+  { x: 15, z:   3, h: 0.96, sx:  4, sz:  4 }, // Twin Peaks       11,330′
+  { x: 16, z:  -1, h: 0.95, sx:  4, sz:  4 }, // Lone Peak        11,253′
+  { x: 15, z:  -5, h: 0.86, sx:  5, sz:  5 }, // Draper ridge
+  // ── South ────────────────────────────────────────────────────
   { x: 18, z: -16, h: 0.99, sx:  7, sz:  8 }, // Mt Timpanogos   11,752′
-  { x: 16, z: -30, h: 1.00, sx:  6, sz:  7 }, // Mount Nebo      11,928′
+  { x: 17, z: -24, h: 0.88, sx:  6, sz:  6 }, // Santaquin / mid-range
+  { x: 16, z: -32, h: 1.00, sx:  6, sz:  7 }, // Mount Nebo      11,928′
 ];
 
 function terrainH(wx: number, wz: number): number {
-  let h = wx > 0 ? Math.min(0.12, wx / 80 * 0.12) : 0;
+  /*
+    Broad, sweeping base that fades naturally from west to east.
+    The base rises gradually starting 55 units west of the peak zone,
+    giving the mountain a wide "skirt" before the ridgeline.
+    XMAX is clipped to 24 in the mesh build (east slope hidden),
+    so only the front face and ridgeline are rendered.
+  */
+  const base = Math.max(0, (wx + 55) / 130) * 0.18;
+  let h = base;
   for (const p of PEAKS) {
     const dx = (wx - p.x) / p.sx;
     const dz = (wz - p.z) / p.sz;
@@ -121,10 +135,12 @@ export default function MountainGL({ onCameraUpdate }: Props) {
     scene.fog    = new THREE.FogExp2(0x000000, FOG_DEN);
     const camera = new THREE.PerspectiveCamera(FOV, 1, 0.5, 800);
 
-    const COLS = mobile ? 130 : 190;
-    const ROWS = mobile ? 95  : 140;
-    const XMIN = -90, XMAX = 38;
-    const ZMIN = -52, ZMAX = 58;
+    const COLS = mobile ? 140 : 200;
+    const ROWS = mobile ? 100 : 150;
+    // XMAX = 24: clips east slope — only the west face / ridgeline shows.
+    // Terrain extends far west (XMIN=-100) so the valley base is visible.
+    const XMIN = -100, XMAX = 24;
+    const ZMIN = -52,  ZMAX = 58;
 
     const H: number[][] = Array.from({ length: ROWS }, (_, zi) =>
       Array.from({ length: COLS }, (_, xi) => {

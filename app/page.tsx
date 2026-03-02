@@ -17,17 +17,18 @@ const BEBAS: React.CSSProperties = { fontFamily:"'Bebas Neue',sans-serif", lette
 const MONO: React.CSSProperties  = { fontFamily:"'JetBrains Mono','Fira Code','Courier New',monospace" };
 
 /* ─── Scroll → section mapping (0–1) ─────────────────────────── */
-// Page is 300vh. These are fractional scroll positions where each
-// section is fully visible.
+// Page is 450vh. Sections are spread wider so each one is readable
+// for longer — not a quick flash.
 const SECTIONS = {
   hero:    0.00,
-  events:  0.28,
-  media:   0.56,
-  contact: 0.84,
+  events:  0.26,
+  media:   0.54,
+  contact: 0.82,
 };
 
 /* ─── Fade helper ─────────────────────────────────────────────── */
-function sectionOpacity(scroll: number, peak: number, halfW = 0.14): number {
+// halfW = 0.22 → each section is fully visible for ~44% of total scroll
+function sectionOpacity(scroll: number, peak: number, halfW = 0.22): number {
   return Math.max(0, 1 - Math.abs(scroll - peak) / halfW);
 }
 
@@ -204,8 +205,8 @@ export default function Home() {
         </button>
       </nav>
 
-      {/* ── Scroll height driver (300vh gives 4 distinct scroll beats) ── */}
-      <div style={{height:"300vh"}}>
+      {/* ── Scroll height driver — 450vh gives sections time to breathe ── */}
+      <div style={{height:"450vh"}}>
 
         {/* Sticky viewport — all section overlays live here */}
         <div style={{position:"sticky",top:0,height:"100vh",overflow:"hidden"}}>
@@ -221,15 +222,15 @@ export default function Home() {
             transition:"opacity 0.4s ease",
             pointerEvents:heroOp>0.1?"auto":"none",
           }}>
-            {/* Bottom gradient */}
-            <div style={{position:"absolute",bottom:0,left:0,right:0,height:"65%",background:"linear-gradient(to top,rgba(0,0,0,0.92) 0%,transparent 100%)",pointerEvents:"none"}}/>
+            {/* Bottom gradient — strong, text must be legible */}
+            <div style={{position:"absolute",bottom:0,left:0,right:0,height:"70%",background:"linear-gradient(to top,rgba(0,0,0,0.97) 0%,rgba(0,0,0,0.70) 50%,transparent 100%)",pointerEvents:"none"}}/>
             <div style={{position:"relative"}}>
               {/* Section tag */}
-              <div style={{...MONO,fontSize:"0.48rem",letterSpacing:"0.26em",textTransform:"uppercase",color:"rgba(255,255,255,0.50)",marginBottom:"0.8rem"}}>
+              <div style={{...MONO,fontSize:"0.48rem",letterSpacing:"0.26em",textTransform:"uppercase",color:"rgba(255,255,255,0.70)",marginBottom:"0.8rem"}}>
                 40°45′N · 111°53′W · Wasatch Front
               </div>
               {/* Tagline */}
-              <p style={{...MONO,fontSize:"clamp(0.78rem,1.8vw,1.05rem)",color:"rgba(255,255,255,0.65)",maxWidth:340,lineHeight:1.9,marginBottom:"1.5rem"}}>
+              <p style={{...MONO,fontSize:"clamp(0.82rem,1.8vw,1.08rem)",color:"rgba(255,255,255,0.88)",maxWidth:340,lineHeight:1.9,marginBottom:"1.5rem"}}>
                 Salt Lake City's AI and crypto builder community.
               </p>
               <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
@@ -264,10 +265,10 @@ export default function Home() {
                 >Luma →</a>
               </div>
               {EVENTS.map((ev,i)=>(
-                <div key={i} style={{display:"grid",gridTemplateColumns:"4.5rem 1fr auto",gap:"clamp(8px,2vw,20px)",alignItems:"center",padding:"1.1rem 0",borderTop:"1px solid rgba(255,255,255,0.12)"}}>
-                  <span style={{...MONO,fontSize:"0.52rem",color:"rgba(255,255,255,0.55)",letterSpacing:"0.1em"}}>{ev.date}</span>
-                  <span style={{fontSize:"clamp(0.88rem,1.8vw,1.15rem)",fontWeight:600,letterSpacing:"-0.02em",color:"#fff"}}>{ev.title}</span>
-                  <span style={{...MONO,fontSize:"0.44rem",letterSpacing:"0.16em",textTransform:"uppercase",color:"#60A5FA",whiteSpace:"nowrap"}}>{ev.type}</span>
+                <div key={i} style={{display:"grid",gridTemplateColumns:"4.5rem 1fr auto",gap:"clamp(8px,2vw,20px)",alignItems:"center",padding:"1.2rem 0",borderTop:"1px solid rgba(255,255,255,0.15)"}}>
+                  <span style={{...MONO,fontSize:"0.52rem",color:"rgba(255,255,255,0.65)",letterSpacing:"0.1em"}}>{ev.date}</span>
+                  <span style={{fontSize:"clamp(0.9rem,1.8vw,1.18rem)",fontWeight:700,letterSpacing:"-0.02em",color:"#fff"}}>{ev.title}</span>
+                  <span style={{...MONO,fontSize:"0.46rem",letterSpacing:"0.16em",textTransform:"uppercase",color:"#93C5FD",whiteSpace:"nowrap"}}>{ev.type}</span>
                 </div>
               ))}
               <div style={{borderBottom:"1px solid rgba(255,255,255,0.07)"}}/>
@@ -333,7 +334,7 @@ export default function Home() {
               <h2 style={{...BEBAS,fontSize:"clamp(3rem,11vw,9rem)",lineHeight:0.88,color:"#fff",marginBottom:"1.5rem"}}>
                 Get in<br/><span style={{color:"#2563EB"}}>the room.</span>
               </h2>
-              <p style={{...MONO,fontSize:"clamp(0.7rem,1.6vw,0.88rem)",color:"rgba(255,255,255,0.62)",lineHeight:2,marginBottom:"2rem"}}>
+              <p style={{...MONO,fontSize:"clamp(0.75rem,1.6vw,0.92rem)",color:"rgba(255,255,255,0.85)",lineHeight:2,marginBottom:"2rem"}}>
                 Monthly meetups. Builder roundtables.<br/>No hype. Just the work.
               </p>
               <div style={{display:"flex",gap:8,justifyContent:"center",flexWrap:"wrap"}}>
