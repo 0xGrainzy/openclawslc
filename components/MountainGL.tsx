@@ -7,50 +7,38 @@ import * as THREE from "three";
   The Wasatch runs N–S along our Z-axis.  From the west you see the
   full range as a horizontal panorama — the correct SLC valley view.
 
-  NO-CLIP PROOF  (mobile, r=65, phi=-0.06, FOV=76°, TARGET.y=29)
+  NO-CLIP PROOF (mobile, r=92, phi=0.19, FOV=74°, TARGET.y=29)
   ─────────────────────────────────────────────────────────────────
-  camera.y  = 29 + 65·sin(−0.06) = 29 − 3.9 = 25.1
-  looks UP at target y=29  (2.8° upward tilt)
-
-  peak (y=58) angle above look-dir:
-    arctan((58−25.1)/65) − 2.8° = 26.8° − 2.8° = 24.0°
-
-  FOV=76° → half-angle = 38°
-  24° < 38° → peaks safely in upper third  ✓
-
+  camera.y  = 29 + 92·sin(0.19) = 29 + 17.4 = 46.4
+  peak (y=58) angle from look-dir centre:
+    arctan((58−46.4)/92) = arctan(0.126) = 7.2°  BELOW top of frame
   base (y=0) angle below look-dir:
-    arctan(25.1/65) + 2.8° = 21.1° + 2.8° = 23.9°
-  23.9° < 38° → valley floor visible  ✓
+    arctan(46.4/92) = 26.7°
+  FOV=74° → half-angle = 37°
+  7.2° and 26.7° both < 37° → full mountain in frame ✓
 */
 
 const MAX_H = 58;
 
 const PEAKS = [
-  // ── North (left on screen when viewed from west) ──────────────
-  { x:  8, z:  42, h: 0.78, sx:  9, sz:  9 }, // Ben Lomond       9,712′
-  { x: 10, z:  32, h: 0.72, sx:  8, sz:  7 }, // Francis Peak area
-  { x: 11, z:  22, h: 0.76, sx:  7, sz:  6 }, // Thurston Peak
-  { x: 12, z:  14, h: 0.80, sx:  6, sz:  6 }, // Grandeur / upper SLC
-  // ── Central (the dramatic SLC skyline) ───────────────────────
-  { x: 13, z:   9, h: 0.85, sx:  5, sz:  5 }, // Gobblers Knob
-  { x: 12, z:   7, h: 0.80, sx:  5, sz:  4 }, // Mount Olympus     9,026′
+  // ── North ─────────────────────────────────────────────────────
+  { x:  8, z:  42, h: 0.67, sx:  9, sz:  9 }, // Ben Lomond       9,712′
+  { x: 10, z:  32, h: 0.62, sx:  8, sz:  7 }, // Francis Peak
+  { x: 11, z:  22, h: 0.66, sx:  7, sz:  6 }, // Thurston Peak
+  { x: 12, z:  14, h: 0.70, sx:  6, sz:  6 }, // Grandeur / upper SLC
+  // ── Central ───────────────────────────────────────────────────
+  { x: 13, z:   9, h: 0.75, sx:  5, sz:  5 }, // Gobblers Knob
+  { x: 12, z:   7, h: 0.70, sx:  5, sz:  4 }, // Mount Olympus     9,026′
   { x: 15, z:   3, h: 0.96, sx:  4, sz:  4 }, // Twin Peaks       11,330′
   { x: 16, z:  -1, h: 0.95, sx:  4, sz:  4 }, // Lone Peak        11,253′
-  { x: 15, z:  -5, h: 0.86, sx:  5, sz:  5 }, // Draper ridge
-  // ── South ────────────────────────────────────────────────────
+  { x: 15, z:  -5, h: 0.80, sx:  5, sz:  5 }, // Draper ridge
+  // ── South ─────────────────────────────────────────────────────
   { x: 18, z: -16, h: 0.99, sx:  7, sz:  8 }, // Mt Timpanogos   11,752′
-  { x: 17, z: -24, h: 0.88, sx:  6, sz:  6 }, // Santaquin / mid-range
+  { x: 17, z: -24, h: 0.82, sx:  6, sz:  6 }, // Santaquin ridge
   { x: 16, z: -32, h: 1.00, sx:  6, sz:  7 }, // Mount Nebo      11,928′
 ];
 
 function terrainH(wx: number, wz: number): number {
-  /*
-    Broad, sweeping base that fades naturally from west to east.
-    The base rises gradually starting 55 units west of the peak zone,
-    giving the mountain a wide "skirt" before the ridgeline.
-    XMAX is clipped to 24 in the mesh build (east slope hidden),
-    so only the front face and ridgeline are rendered.
-  */
   const base = Math.max(0, (wx + 55) / 130) * 0.18;
   let h = base;
   for (const p of PEAKS) {
@@ -63,11 +51,10 @@ function terrainH(wx: number, wz: number): number {
 
 function altColor(t: number): [number, number, number] {
   // foothills: deep navy → peaks: bright ice-blue/white
-  // Brighter at the top so peaks read clearly against black sky
   return [
-    0.03 + t * 0.30,   // 0.03 → 0.33
-    0.05 + t * 0.48,   // 0.05 → 0.53
-    0.22 + t * 0.76,   // 0.22 → 0.98  (peaks nearly full-blue)
+    0.03 + t * 0.30,
+    0.05 + t * 0.48,
+    0.22 + t * 0.76,
   ];
 }
 
@@ -75,18 +62,19 @@ const TARGET = new THREE.Vector3(12, MAX_H / 2, 0); // y=29 — mountain centre
 
 // Desktop: elevated panoramic sweep from the west
 const KF_DESK = [
-  { theta: Math.PI + 0.18, phi:  0.10, r: 122 },
-  { theta: Math.PI        , phi:  0.13, r: 110 },
-  { theta: Math.PI - 0.22, phi:  0.08, r: 102 },
-  { theta: Math.PI - 0.46, phi:  0.11, r: 118 },
+  { theta: Math.PI + 0.18, phi:  0.14, r: 128 },
+  { theta: Math.PI        , phi:  0.16, r: 118 },
+  { theta: Math.PI - 0.22, phi:  0.12, r: 110 },
+  { theta: Math.PI - 0.46, phi:  0.15, r: 124 },
 ];
-// Mobile: valley-level, slightly below target so camera looks up at peaks
-// phi = -0.06 puts camera at y≈25, looking up — peaks at 24° above centre
+
+// Mobile: elevated view so full ridge is visible — camera above the peaks, looking down slightly
+// phi=0.18–0.20 puts camera at y≈46, peaks at y=58 are ~7° above centre
 const KF_MOB = [
-  { theta: Math.PI + 0.12, phi: -0.06, r: 65 },
-  { theta: Math.PI        , phi: -0.04, r: 61 },
-  { theta: Math.PI - 0.18, phi: -0.02, r: 58 },
-  { theta: Math.PI + 0.26, phi: -0.05, r: 67 },
+  { theta: Math.PI + 0.10, phi:  0.19, r: 92 },
+  { theta: Math.PI        , phi:  0.20, r: 88 },
+  { theta: Math.PI - 0.15, phi:  0.17, r: 85 },
+  { theta: Math.PI + 0.22, phi:  0.18, r: 94 },
 ];
 
 function orbitPos(theta: number, phi: number, r: number): THREE.Vector3 {
@@ -123,8 +111,8 @@ export default function MountainGL({ onCameraUpdate }: Props) {
 
     const mobile  = window.innerWidth < 768;
     const KFS     = mobile ? KF_MOB  : KF_DESK;
-    const FOV     = mobile ? 76 : 50;
-    const FOG_DEN = mobile ? 0.0016 : 0.0032;
+    const FOV     = mobile ? 74 : 50;
+    const FOG_DEN = mobile ? 0.0010 : 0.0026;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
@@ -133,14 +121,14 @@ export default function MountainGL({ onCameraUpdate }: Props) {
 
     const scene  = new THREE.Scene();
     scene.fog    = new THREE.FogExp2(0x000000, FOG_DEN);
-    const camera = new THREE.PerspectiveCamera(FOV, 1, 0.5, 800);
+    const camera = new THREE.PerspectiveCamera(FOV, 1, 0.5, 900);
 
     const COLS = mobile ? 140 : 200;
     const ROWS = mobile ? 100 : 150;
-    // XMAX = 24: clips east slope — only the west face / ridgeline shows.
-    // Terrain extends far west (XMIN=-100) so the valley base is visible.
-    const XMIN = -100, XMAX = 24;
-    const ZMIN = -52,  ZMAX = 58;
+    // XMAX=45: east slope fades naturally (peaks at x≈15-18 drop to ~5% by x=45)
+    // No more vertical cliff at the east edge.
+    const XMIN = -100, XMAX = 45;
+    const ZMIN = -55,  ZMAX = 62;
 
     const H: number[][] = Array.from({ length: ROWS }, (_, zi) =>
       Array.from({ length: COLS }, (_, xi) => {
@@ -213,7 +201,7 @@ export default function MountainGL({ onCameraUpdate }: Props) {
       const kf  = lerpKf(scroll, KFS);
       const dst = orbitPos(
         kf.theta + mouse.x * 0.03,
-        kf.phi   - mouse.y * 0.02,
+        kf.phi   - mouse.y * 0.015,
         kf.r,
       );
       camPos.lerp(dst, 0.032);
