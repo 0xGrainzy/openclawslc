@@ -159,7 +159,7 @@ export default function Home() {
         display:"flex", alignItems:"center", justifyContent:"center",
         padding:"clamp(60px,9vh,88px) clamp(16px,4vw,48px)",
       }}>
-        <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.93)",zIndex:1}}/>
+        <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.72)",zIndex:1}}/>
         <div style={{position:"relative",width:"100%",maxWidth:560,zIndex:2}}>
           <div style={{...MONO,fontSize:"0.42rem",letterSpacing:"0.28em",textTransform:"uppercase",color:"#2563EB",marginBottom:"0.6rem"}}>UPCOMING</div>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:"1.5rem",flexWrap:"wrap",gap:"0.5rem"}}>
@@ -188,7 +188,7 @@ export default function Home() {
         display:"flex", alignItems:"center", justifyContent:"center",
         padding:"clamp(60px,9vh,88px) clamp(16px,4vw,48px)",
       }}>
-        <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.93)",zIndex:1}}/>
+        <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.72)",zIndex:1}}/>
         <div style={{position:"relative",width:"100%",maxWidth:560,zIndex:2}}>
           <div style={{...MONO,fontSize:"0.42rem",letterSpacing:"0.28em",textTransform:"uppercase",color:"#2563EB",marginBottom:"0.6rem"}}>MEDIA &amp; WRITING</div>
           <span style={{...BEBAS,fontSize:"clamp(2.4rem,6vw,4.5rem)",color:"#fff",lineHeight:1,display:"block",marginBottom:"1.5rem"}}>Articles</span>
@@ -214,7 +214,7 @@ export default function Home() {
         display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
         padding:"clamp(20px,5vw,60px)",
       }}>
-        <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.93)",zIndex:1}}/>
+        <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.72)",zIndex:1}}/>
         <div style={{position:"relative",textAlign:"center",maxWidth:540,zIndex:2}}>
           <h2 style={{...BEBAS,fontSize:"clamp(3rem,12vw,9.5rem)",lineHeight:0.88,color:"#fff",marginBottom:"1.5rem"}}>
             Get in<br/><span style={{color:"#2563EB"}}>the room.</span>
