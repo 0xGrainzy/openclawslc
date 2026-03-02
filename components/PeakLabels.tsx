@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import type { CameraInfo } from "./MountainGL";
 
-const MAX_H = 28;
+const MAX_H = 50;
 
 // Approximate peak heights (dome + ridge + noise + bump combined).
 // Don't need to be exact — just close enough for label placement.

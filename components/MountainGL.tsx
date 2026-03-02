@@ -4,24 +4,26 @@ import * as THREE from "three";
 
 /*
   ═══════════════════════════════════════════════════════════════
-  CENTRAL WASATCH — Andy Earl Reference Accuracy
+  CENTRAL WASATCH — Cinematic Hero Visualization
   ═══════════════════════════════════════════════════════════════
 
-  Terrain layers (in order):
-  1. Asymmetric dome — steep west face, gentle east back-slope
-  2. Ridge crest line — slight height emphasis along x≈15
-  3. Canyon incisions — Millcreek, Big/Little Cottonwood, Dry Creek
-     These are the defining feature of the Central Wasatch silhouette.
-  4. Fractal noise — organic ridge/valley texture across the mass
-  5. Named peak bumps — subtle additions at summit locations
+  AESTHETIC: Dramatic wireframe mountain filling the viewport.
+  Hero view: low camera, mountain towers above, grid floor extends
+  toward viewer. Scrolling orbits + elevates to reveal the full
+  range from above.
 
-  Rendering: horizontal contour lines only (no Z-columns).
-  Camera: elevated oblique, 360° orbit (all phi ≥ 0.40).
+  Not trying to be a topographic map. Trying to be STUNNING.
+
+  Camera hero: phi=0.06 (nearly ground-level), r=45 (close),
+  mountain fills ~80% of vertical viewport.
+  Peak at MAX_H=50 sits in the upper 10% of frame.
+
+  Horizontal contour lines only — the classic wireframe mountain.
 */
 
-const MAX_H = 28;
+const MAX_H = 50;
 
-/* ─── Noise engine ───────────────────────────────────────────── */
+/* ─── Noise ──────────────────────────────────────────────────── */
 
 function hash2d(ix: number, iz: number): number {
   let n = (ix * 73856093) ^ (iz * 19349663);
@@ -44,128 +46,116 @@ function fbm(x: number, z: number, octaves = 6): number {
   let val = 0, amp = 1, freq = 1, maxA = 0;
   for (let i = 0; i < octaves; i++) {
     val += amp * smoothNoise(x * freq, z * freq);
-    maxA += amp;
-    amp *= 0.46;
-    freq *= 2.15;
+    maxA += amp; amp *= 0.46; freq *= 2.15;
   }
   return val / maxA;
 }
 
-function smoothstep(e0: number, e1: number, x: number): number {
+function sstep(e0: number, e1: number, x: number): number {
   const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0)));
   return t * t * (3 - 2 * t);
 }
 
-/* ─── Canyon system ──────────────────────────────────────────── */
-// Deep V-cuts running E-W into the western face.
-// These define the iconic Wasatch silhouette from SLC.
+/* ─── Canyon cuts ────────────────────────────────────────────── */
 const CANYONS = [
-  { z: +12, depth: 0.16, width: 1.6, x0:  0, x1: 13 }, // Millcreek Canyon
-  { z:  +3, depth: 0.24, width: 2.0, x0: -2, x1: 16 }, // Big Cottonwood Canyon
-  { z:  -5, depth: 0.24, width: 2.0, x0: -2, x1: 17 }, // Little Cottonwood Canyon
-  { z: -16, depth: 0.15, width: 1.6, x0:  1, x1: 15 }, // Dry Creek Canyon
+  { z: +12, depth: 0.18, width: 1.6, x0: -2, x1: 13 }, // Millcreek
+  { z:  +3, depth: 0.28, width: 2.2, x0: -4, x1: 16 }, // Big Cottonwood
+  { z:  -5, depth: 0.28, width: 2.2, x0: -4, x1: 17 }, // Little Cottonwood
+  { z: -16, depth: 0.16, width: 1.6, x0:  0, x1: 15 }, // Dry Creek
 ];
 
-/* ─── Named peak bumps (subtle, on top of the mass) ──────────── */
-const PEAK_BUMPS = [
-  { x:  8, z: +16, h: 0.05, r: 3.5 }, // Grandeur         9,299′
-  { x:  6, z:  +8, h: 0.04, r: 3.0 }, // West Slabs        8,806′
-  { x:  9, z:  +6, h: 0.08, r: 2.8 }, // Mt Olympus        9,030′
-  { x: 13, z:  +6, h: 0.12, r: 2.5 }, // Gobblers Knob    10,246′
-  { x: 14, z:  +5, h: 0.13, r: 2.5 }, // Mount Raymond    10,241′
-  { x: 15, z:  +1, h: 0.14, r: 2.5 }, // Kessler Peak     10,403′
-  { x: 17, z:  -2, h: 0.18, r: 2.8 }, // Mount Superior   11,032′
-  { x: 18, z:  -3, h: 0.22, r: 3.0 }, // Broads Fork Twins 11,330′
-  { x: 19, z:  -6, h: 0.16, r: 2.5 }, // Hidden Peak      10,992′
-  { x: 20, z:  -7, h: 0.20, r: 2.5 }, // Pfeifferhorn     11,325′
-  { x: 19, z:  -9, h: 0.19, r: 2.5 }, // White Baldy      11,321′
-  { x: 18, z: -12, h: 0.17, r: 3.0 }, // Lone Peak        11,253′
-  { x: 17, z: -20, h: 0.10, r: 3.5 }, // Box Elder Peak   11,101′
+/* ─── Peak bumps ─────────────────────────────────────────────── */
+const BUMPS = [
+  { x:  8, z:+16, h:0.06, r:3.5 }, // Grandeur
+  { x:  9, z: +6, h:0.10, r:3.0 }, // Mt Olympus
+  { x: 13, z: +6, h:0.13, r:2.5 }, // Gobblers Knob
+  { x: 14, z: +5, h:0.14, r:2.5 }, // Mt Raymond
+  { x: 15, z: +1, h:0.15, r:2.5 }, // Kessler
+  { x: 17, z: -2, h:0.20, r:2.8 }, // Mt Superior
+  { x: 18, z: -3, h:0.26, r:3.0 }, // Broads Fork Twins ← highest
+  { x: 19, z: -6, h:0.18, r:2.5 }, // Hidden Peak
+  { x: 20, z: -7, h:0.24, r:2.5 }, // Pfeifferhorn
+  { x: 19, z: -9, h:0.21, r:2.5 }, // White Baldy
+  { x: 18, z:-12, h:0.19, r:3.0 }, // Lone Peak
+  { x: 17, z:-20, h:0.12, r:3.5 }, // Box Elder
 ];
 
-/* ─── Terrain height ─────────────────────────────────────────── */
-const XMIN_C = -60, ZMIN_C = -40, ZMAX_C = +36;
+/* ─── Terrain ────────────────────────────────────────────────── */
+const XMIN_C = -25, ZMIN_C = -38, ZMAX_C = +34;
 
 function terrainH(wx: number, wz: number): number {
-  // ── 1. Asymmetric dome ──────────────────────────────────────
-  // Steep west face (SLC side), gentle east back-slope.
-  // Center: x=14, z=-2 (high crest area).
+  // Asymmetric dome: steep west, gentle east
   const cx = 14, cz = -2;
-  const dxRaw = wx - cx;
-  const hwX = dxRaw < 0 ? 13 : 24; // steep west (13), gentle east (24)
-  const hwZ = 26;
-  const dx = dxRaw / hwX;
-  const dz = (wz - cz) / hwZ;
+  const dxR = wx - cx;
+  const hwX = dxR < 0 ? 14 : 26;
+  const dx = dxR / hwX;
+  const dz = (wz - cz) / 26;
   const dome = Math.max(0, 1 - dx * dx - dz * dz);
 
-  // ── 2. Ridge crest emphasis along x ≈ 15 ───────────────────
-  const ridgeDx = (wx - 15) / 5;
-  const ridge = Math.exp(-ridgeDx * ridgeDx) * dome * 0.18;
+  // Ridge crest
+  const rDx = (wx - 16) / 5;
+  const ridge = Math.exp(-rDx * rDx) * dome * 0.20;
 
-  // ── 3. Canyon incisions ─────────────────────────────────────
-  let canyonCut = 0;
+  // Canyon cuts
+  let cut = 0;
   for (const c of CANYONS) {
     const dzC = (wz - c.z) / c.width;
-    const profile = Math.exp(-dzC * dzC);
-    // Canyon only within its x-extent, smoothly ramped in/out
-    const xIn = smoothstep(c.x0, c.x0 + 4, wx);
-    const xOut = 1 - smoothstep(c.x1 - 3, c.x1, wx);
-    canyonCut += c.depth * profile * xIn * xOut;
+    cut += c.depth * Math.exp(-dzC * dzC) * sstep(c.x0, c.x0 + 4, wx) * (1 - sstep(c.x1 - 3, c.x1, wx));
   }
 
-  // ── 4. Fractal noise (high-frequency detail) ────────────────
-  // More octaves + higher freq for the fine ridge/valley texture.
-  // Multiplied by dome² to concentrate detail on the high areas.
-  const n = fbm(wx * 0.12 + 5.3, wz * 0.09 + 3.7, 6);
-  const noiseContrib = n * dome * dome * 0.22;
+  // Fractal noise — concentrated on high areas (dome²)
+  const n = fbm(wx * 0.13 + 5.3, wz * 0.10 + 3.7, 6);
+  const noise = n * dome * dome * 0.24;
 
-  // ── 5. Named peak bumps ─────────────────────────────────────
+  // Peak bumps
   let peaks = 0;
-  for (const p of PEAK_BUMPS) {
-    const pdx = (wx - p.x) / p.r;
-    const pdz = (wz - p.z) / p.r;
+  for (const p of BUMPS) {
+    const pdx = (wx - p.x) / p.r, pdz = (wz - p.z) / p.r;
     peaks += p.h * Math.exp(-(pdx * pdx + pdz * pdz));
   }
 
-  // Combine
-  const raw = dome * 0.48 + ridge + noiseContrib + peaks - canyonCut;
+  const raw = dome * 0.46 + ridge + noise + peaks - cut;
 
-  // Edge tapers
-  const xEast = 1 - Math.max(0, Math.min(1, (wx - 32) / 16));
-  const xWest = Math.max(0, Math.min(1, (wx - XMIN_C) / 20));
-  const zS = Math.max(0, Math.min(1, (wz - ZMIN_C) / 14));
-  const zN = Math.max(0, Math.min(1, (ZMAX_C - wz) / 14));
+  // Soft edge tapers
+  const xE = 1 - Math.max(0, Math.min(1, (wx - 34) / 14));
+  const xW = Math.max(0, Math.min(1, (wx - XMIN_C) / 15));
+  const zS = Math.max(0, Math.min(1, (wz - ZMIN_C) / 12));
+  const zN = Math.max(0, Math.min(1, (ZMAX_C - wz) / 12));
 
-  return Math.min(1, Math.max(0, raw)) * xEast * xWest * Math.min(zS, zN);
+  return Math.min(1, Math.max(0, raw)) * xE * xW * Math.min(zS, zN);
 }
 
-/* ─── Color ──────────────────────────────────────────────────── */
+/* ─── Color: vivid gradient, near-white at peaks ─────────────── */
 function altColor(t: number): [number, number, number] {
   return [
-    0.02 + t * 0.36,
-    0.04 + t * 0.56,
-    0.18 + t * 0.82,
+    0.01 + t * 0.52,   // peaks → 0.53
+    0.03 + t * 0.72,   // peaks → 0.75
+    0.16 + t * 0.84,   // peaks → 1.00
   ];
 }
 
 /* ─── Camera ─────────────────────────────────────────────────── */
-const TARGET = new THREE.Vector3(14, MAX_H * 0.30, -2);
+const TARGET = new THREE.Vector3(14, MAX_H * 0.40, -2);
 
-// Hero view from SSW (theta = π + 0.25) to match Andy Earl perspective.
-// All phi ≥ 0.40 — elevated oblique view, always looking down.
+/*
+  HERO: phi=0.06, r=45 → camera nearly ground-level, CLOSE.
+  Mountain fills ~80% of vertical viewport.
+  SCROLL: camera rises + pulls back → reveals full range from above.
+  This hero-to-satellite transition IS the scroll experience.
+*/
 const KF_MOB = [
-  { theta: Math.PI + 0.25,  phi: 0.44, r:  74 }, // SSW — hero (Andy Earl angle)
-  { theta: Math.PI * 1.50,  phi: 0.50, r:  98 }, // South
-  { theta: Math.PI * 2.00,  phi: 0.44, r:  80 }, // East — back face
-  { theta: Math.PI * 2.50,  phi: 0.48, r: 100 }, // North
-  { theta: Math.PI * 3.25,  phi: 0.44, r:  74 }, // SSW — full circle
+  { theta: Math.PI + 0.15,  phi: 0.06, r:  45 }, // SSW — DRAMATIC hero (ground-level, close)
+  { theta: Math.PI * 1.50,  phi: 0.30, r:  72 }, // South — rising, pulling back
+  { theta: Math.PI * 2.00,  phi: 0.50, r: 100 }, // East — elevated satellite view
+  { theta: Math.PI * 2.50,  phi: 0.35, r:  78 }, // North — orbiting
+  { theta: Math.PI * 3.15,  phi: 0.06, r:  45 }, // SSW — return to hero
 ];
 const KF_DESK = [
-  { theta: Math.PI + 0.25,  phi: 0.40, r: 100 }, // SSW
-  { theta: Math.PI * 1.50,  phi: 0.46, r: 132 }, // South
-  { theta: Math.PI * 2.00,  phi: 0.40, r: 108 }, // East
-  { theta: Math.PI * 2.50,  phi: 0.44, r: 134 }, // North
-  { theta: Math.PI * 3.25,  phi: 0.40, r: 100 }, // SSW
+  { theta: Math.PI + 0.15,  phi: 0.08, r:  65 }, // SSW
+  { theta: Math.PI * 1.50,  phi: 0.28, r:  95 }, // South
+  { theta: Math.PI * 2.00,  phi: 0.45, r: 130 }, // East
+  { theta: Math.PI * 2.50,  phi: 0.32, r: 100 }, // North
+  { theta: Math.PI * 3.15,  phi: 0.08, r:  65 }, // SSW
 ];
 
 function orbitPos(theta: number, phi: number, r: number): THREE.Vector3 {
@@ -202,21 +192,20 @@ export default function MountainGL({ onCameraUpdate }: Props) {
 
     const mobile = window.innerWidth < 768;
     const KFS    = mobile ? KF_MOB : KF_DESK;
-    const FOV    = mobile ? 68 : 48;
-    const FOG    = mobile ? 0.0007 : 0.0015;
+    const FOV    = mobile ? 72 : 52;
+    const FOG    = mobile ? 0.0012 : 0.0020;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.setClearColor(0x000000, 1);
     el.appendChild(renderer.domElement);
 
-    const scene  = new THREE.Scene();
-    scene.fog    = new THREE.FogExp2(0x000000, FOG);
-    const camera = new THREE.PerspectiveCamera(FOV, 1, 0.5, 1200);
+    const scene = new THREE.Scene();
+    scene.fog   = new THREE.FogExp2(0x000000, FOG);
+    const camera = new THREE.PerspectiveCamera(FOV, 1, 0.5, 800);
 
-    // High-resolution grid for detailed terrain
     const COLS = mobile ? 180 : 280;
-    const ROWS = mobile ? 140 : 200;
+    const ROWS = mobile ? 140 : 210;
     const XMIN = XMIN_C, XMAX = 48;
     const ZMIN = ZMIN_C, ZMAX = ZMAX_C;
 
@@ -228,15 +217,15 @@ export default function MountainGL({ onCameraUpdate }: Props) {
       }),
     );
 
-    const verts: number[] = [], colArr: number[] = [];
+    const verts: number[] = [], colA: number[] = [];
     function seg(x0: number, y0: number, z0: number, x1: number, y1: number, z1: number) {
       verts.push(x0, y0, z0, x1, y1, z1);
       const [r0, g0, b0] = altColor(y0 / MAX_H);
       const [r1, g1, b1] = altColor(y1 / MAX_H);
-      colArr.push(r0, g0, b0, r1, g1, b1);
+      colA.push(r0, g0, b0, r1, g1, b1);
     }
 
-    // HORIZONTAL CONTOUR LINES ONLY — classic wireframe aesthetic
+    // HORIZONTAL CONTOUR LINES ONLY
     for (let zi = 0; zi < ROWS; zi++) {
       const wz = ZMIN + (zi / (ROWS - 1)) * (ZMAX - ZMIN);
       for (let xi = 0; xi < COLS - 1; xi++) {
@@ -248,8 +237,8 @@ export default function MountainGL({ onCameraUpdate }: Props) {
 
     const geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.Float32BufferAttribute(verts, 3));
-    geo.setAttribute("color", new THREE.Float32BufferAttribute(colArr, 3));
-    const mat = new THREE.LineBasicMaterial({ vertexColors: true, opacity: 0.88, transparent: true });
+    geo.setAttribute("color", new THREE.Float32BufferAttribute(colA, 3));
+    const mat = new THREE.LineBasicMaterial({ vertexColors: true, opacity: 0.95, transparent: true });
     scene.add(new THREE.LineSegments(geo, mat));
 
     const mouse = new THREE.Vector2();
@@ -264,8 +253,7 @@ export default function MountainGL({ onCameraUpdate }: Props) {
       camera.updateProjectionMatrix();
     }
     resize();
-    const ro = new ResizeObserver(resize);
-    ro.observe(el);
+    const ro = new ResizeObserver(resize); ro.observe(el);
 
     const onScroll = () => {
       const max = document.body.scrollHeight - window.innerHeight;
