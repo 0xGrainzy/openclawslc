@@ -91,7 +91,7 @@ function frontH(wx: number, wz: number): number {
   if (dx < 0) {
     xFalloff = Math.pow(1 - xR2, 1.8);  // steep west face
   } else {
-    xFalloff = Math.pow(1 - xR2, 0.6);  // very gentle east — stays elevated
+    xFalloff = Math.pow(1 - xR2, 0.25);  // extremely gentle east — stays elevated far out
   }
   const zFalloff = Math.pow(1 - zR2, 1.0);
 
@@ -135,11 +135,10 @@ function frontH(wx: number, wz: number): number {
 
   const h = base + ridge + wave + peaks + noise + detail - cut;
 
-  // Soft edges
-  const edgeFade = Math.min(
-    Math.pow(Math.max(0, 1 - zR2), 0.35),
-    dx < 0 ? Math.pow(Math.max(0, 1 - xR2), 0.3) : 1
-  );
+  // Soft edges — east side fades very gently
+  const zEdge = Math.pow(Math.max(0, 1 - zR2), 0.35);
+  const xEdge = dx < 0 ? Math.pow(Math.max(0, 1 - xR2), 0.3) : Math.pow(Math.max(0, 1 - xR2), 0.12);
+  const edgeFade = Math.min(zEdge, xEdge);
   return Math.max(0, h) * edgeFade;
 }
 
@@ -155,8 +154,8 @@ function backH(wx: number, wz: number): number {
   const zR2 = zNorm * zNorm;
   if (xR2 >= 1 || zR2 >= 1) return 0;
 
-  const xF = Math.pow(1 - xR2, 0.8);
-  const zF = Math.pow(1 - zR2, 0.8);
+  const xF = Math.pow(1 - xR2, 0.3);
+  const zF = Math.pow(1 - zR2, 0.4);
   const env = xF * zF;
 
   // Rolling continuous wave — these mountains are a sea of ridges
