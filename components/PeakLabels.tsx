@@ -3,118 +3,152 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import type { CameraInfo } from "./MountainGL";
 
-/* ─────────────────────────────────────────────────────────────────
-   Projects the 3 most iconic Wasatch peaks into screen space.
-   Shows each label only when: in front of camera, within screen,
-   and far enough from other visible labels (no overlap).
-───────────────────────────────────────────────────────────────── */
+/*
+  Renders a label for every Wasatch peak that is currently on-screen.
+  Collision resolution: peaks that would overlap are staggered upward
+  (not hidden) so every visible peak always has a readable label.
+*/
 
 const MAX_H = 58;
 
-// Three most iconic peaks — in priority order
-const LABELED = [
-  { name: "Timpanogos", elev: "11,752′", wx: 18, wy: 0.99 * MAX_H, wz: -16 },
-  { name: "Ben Lomond",  elev: "9,712′",  wx:  8, wy: 0.78 * MAX_H, wz:  42 },
-  { name: "Mt Nebo",     elev: "11,928′", wx: 16, wy: 1.00 * MAX_H, wz: -30 },
+const PEAKS_DEF = [
+  { name:"Ben Lomond",  elev:"9,712′",  wx:  8, wy: 0.78*MAX_H, wz:  42 },
+  { name:"Mt Olympus",  elev:"9,026′",  wx: 12, wy: 0.76*MAX_H, wz:   7 },
+  { name:"Twin Peaks",  elev:"11,330′", wx: 15, wy: 0.94*MAX_H, wz:   3 },
+  { name:"Lone Peak",   elev:"11,253′", wx: 16, wy: 0.93*MAX_H, wz:  -1 },
+  { name:"Timpanogos",  elev:"11,752′", wx: 18, wy: 0.99*MAX_H, wz: -16 },
+  { name:"Mt Nebo",     elev:"11,928′", wx: 16, wy: 1.00*MAX_H, wz: -30 },
 ];
 
-const MIN_DIST = 90; // px — minimum distance between any two visible labels
+const LABEL_W  = 78;  // approximate label width  (px)
+const LABEL_H  = 34;  // approximate label height (px)
+const MIN_XGAP = 60;  // horizontal gap before we stagger vertically
 
-interface LabelPos {
-  name: string;
-  elev: string;
-  x: number;
-  y: number;
-  visible: boolean;
+interface Placed {
+  name: string; elev: string;
+  px: number; py: number; // peak dot position
+  lx: number; ly: number; // label top-left
+  stemH: number;
 }
 
-interface Props {
-  getCameraInfo: () => CameraInfo | null;
-}
+interface Props { getCameraInfo: () => CameraInfo | null }
 
 export default function PeakLabels({ getCameraInfo }: Props) {
-  const [labels, setLabels] = useState<LabelPos[]>([]);
-  const rafRef = useRef<number>(0);
+  const [placed, setPlaced] = useState<Placed[]>([]);
+  const raf = useRef(0);
 
   useEffect(() => {
     const vec = new THREE.Vector3();
 
-    function update() {
-      rafRef.current = requestAnimationFrame(update);
+    function tick() {
+      raf.current = requestAnimationFrame(tick);
       const info = getCameraInfo();
       if (!info) return;
       const { camera, width, height } = info;
 
-      // Project all peaks into screen space
-      const projected = LABELED.map(p => {
-        vec.set(p.wx, p.wy + 4, p.wz);
+      // Project peaks; discard anything behind camera or off-screen
+      const visible: Array<{ name:string; elev:string; px:number; py:number }> = [];
+      for (const p of PEAKS_DEF) {
+        vec.set(p.wx, p.wy + 1.5, p.wz);
         const proj = vec.clone().project(camera);
-        const sx = ( proj.x * 0.5 + 0.5) * width;
-        const sy = (-proj.y * 0.5 + 0.5) * height;
-        const inBounds = proj.z < 1
-          && sx > 40 && sx < width  - 40
-          && sy > 58 && sy < height - 60; // tight margins — peaks can be near top
-        return { name: p.name, elev: p.elev, x: sx, y: sy, raw: inBounds };
-      });
+        if (proj.z >= 1) continue; // behind camera
+        const px = ( proj.x * 0.5 + 0.5) * width;
+        const py = (-proj.y * 0.5 + 0.5) * height;
+        // Keep labels away from absolute screen edges
+        if (px < 20 || px > width - 20 || py < 44 || py > height - 32) continue;
+        visible.push({ name: p.name, elev: p.elev, px, py });
+      }
 
-      // Anti-collision: greedily include peaks in priority order
-      const shown: { x: number; y: number }[] = [];
-      const next: LabelPos[] = projected.map(p => {
-        if (!p.raw) return { ...p, visible: false };
-        const tooClose = shown.some(s => {
-          const dx = s.x - p.x, dy = s.y - p.y;
-          return Math.sqrt(dx * dx + dy * dy) < MIN_DIST;
-        });
-        if (tooClose) return { ...p, visible: false };
-        shown.push({ x: p.x, y: p.y });
-        return { ...p, visible: true };
-      });
+      // Sort left-to-right for predictable stagger order
+      visible.sort((a, b) => a.px - b.px);
 
-      setLabels(next);
+      // Greedy vertical placement: label sits above its dot;
+      // if it would overlap a previous label, push it higher.
+      const result: Placed[] = [];
+      for (const v of visible) {
+        // Default: centre label over dot, just above it
+        let lx = v.px - LABEL_W / 2;
+        let ly = v.py - LABEL_H - 10; // 10px gap between dot and bottom of label
+
+        // Push up past any overlapping previously placed label
+        for (const prev of result) {
+          const overlapX = Math.abs(v.px - (prev.lx + LABEL_W/2)) < MIN_XGAP;
+          if (overlapX) {
+            const prevTop = prev.ly;
+            if (ly + LABEL_H > prevTop) {
+              ly = prevTop - LABEL_H - 6; // stack above previous label
+            }
+          }
+        }
+
+        // Clamp top edge to stay below the nav bar
+        ly = Math.max(ly, 56);
+
+        const stemH = Math.max(4, v.py - (ly + LABEL_H));
+
+        result.push({ name: v.name, elev: v.elev, px: v.px, py: v.py, lx, ly, stemH });
+      }
+
+      setPlaced(result);
     }
-    update();
-    return () => cancelAnimationFrame(rafRef.current);
+
+    tick();
+    return () => cancelAnimationFrame(raf.current);
   }, [getCameraInfo]);
 
   return (
-    <div style={{ position:"fixed", inset:0, zIndex:5, pointerEvents:"none" }}>
-      {labels.map(l => (
-        <div
-          key={l.name}
-          style={{
-            position: "absolute",
-            left: l.x,
-            top:  l.y,
-            transform: "translate(-50%, -100%)",
-            opacity: l.visible ? 1 : 0,
-            transition: "opacity 0.5s ease",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 3,
-            pointerEvents: "none",
-          }}
-        >
-          <div style={{ textAlign: "center", marginBottom: 2 }}>
+    <div style={{ position:"fixed", inset:0, zIndex:6, pointerEvents:"none" }}>
+      {placed.map(p => (
+        <div key={p.name}>
+
+          {/* Label block */}
+          <div style={{
+            position:"absolute",
+            left: p.lx,
+            top:  p.ly,
+            width: LABEL_W,
+            textAlign:"center",
+          }}>
             <div style={{
-              fontFamily: "monospace",
-              fontSize: "0.44rem",
-              letterSpacing: "0.2em",
-              textTransform: "uppercase",
-              color: "rgba(255,255,255,0.55)",
-              lineHeight: 1.3,
-              whiteSpace: "nowrap",
-            }}>{l.name}</div>
+              fontFamily:"'JetBrains Mono','Fira Code',monospace",
+              fontSize:"0.42rem",
+              letterSpacing:"0.16em",
+              textTransform:"uppercase",
+              color:"rgba(255,255,255,0.80)",
+              lineHeight:1.3,
+              whiteSpace:"nowrap",
+            }}>{p.name}</div>
             <div style={{
-              fontFamily: "monospace",
-              fontSize: "0.38rem",
-              letterSpacing: "0.1em",
-              color: "rgba(96,165,250,0.6)",
-              whiteSpace: "nowrap",
-            }}>{l.elev}</div>
+              fontFamily:"'JetBrains Mono','Fira Code',monospace",
+              fontSize:"0.37rem",
+              letterSpacing:"0.08em",
+              color:"rgba(96,165,250,0.85)",
+              whiteSpace:"nowrap",
+            }}>{p.elev}</div>
           </div>
-          <div style={{ width: 1, height: 8, background: "rgba(96,165,250,0.3)" }} />
-          <div style={{ width: 2.5, height: 2.5, borderRadius: "50%", background: "#60A5FA", opacity: 0.7 }} />
+
+          {/* Stem line from label bottom to dot */}
+          <div style={{
+            position:"absolute",
+            left: p.px - 0.5,
+            top:  p.ly + LABEL_H,
+            width: 1,
+            height: p.stemH,
+            background:"linear-gradient(to bottom, rgba(96,165,250,0.55) 0%, rgba(96,165,250,0.10) 100%)",
+          }}/>
+
+          {/* Peak dot */}
+          <div style={{
+            position:"absolute",
+            left: p.px - 2.5,
+            top:  p.py - 2.5,
+            width: 5,
+            height: 5,
+            borderRadius:"50%",
+            background:"#93C5FD",
+            boxShadow:"0 0 6px 1px rgba(147,197,253,0.5)",
+          }}/>
+
         </div>
       ))}
     </div>

@@ -104,24 +104,35 @@ export default function Home() {
       <MountainGL onCameraUpdate={handleCameraUpdate} />
       <PeakLabels getCameraInfo={getCameraInfo} />
 
-      {/* ── Ghost OPENCLAW SLC banner — always visible, behind content ── */}
+      {/* ── Ghost OPENCLAW SLC banner — centred on screen, always visible ── */}
       <div aria-hidden style={{
-        position:"fixed", bottom:0, left:0, right:0, zIndex:1,
-        padding:"0 clamp(16px,4vw,48px) clamp(14px,3vh,32px)",
+        position:"fixed",
+        top:"42%",
+        left:0, right:0,
+        transform:"translateY(-50%)",
+        zIndex:1,
+        overflow:"hidden",
         pointerEvents:"none", userSelect:"none",
+        textAlign:"center",
+        padding:"0 clamp(8px,2vw,24px)",
       }}>
         <div style={{
           ...BEBAS,
-          fontSize:"min(19vw, 18rem)",
-          lineHeight:0.82,
-          color:"rgba(255,255,255,0.055)",
+          fontSize:"min(20vw, 20rem)",
+          lineHeight:0.88,
           letterSpacing:"-0.01em",
           whiteSpace:"nowrap",
-          overflow:"hidden",
         }}>
-          OPEN<span style={{color:"rgba(37,99,235,0.10)"}}>CLAW</span>{" "}
-          <span style={{color:"rgba(255,255,255,0.032)"}}>SLC</span>
+          <span style={{color:"rgba(255,255,255,0.10)"}}>OPEN</span>
+          <span style={{color:"rgba(37,99,235,0.20)"}}>CLAW</span>
         </div>
+        <div style={{
+          ...BEBAS,
+          fontSize:"min(7vw, 6.5rem)",
+          letterSpacing:"0.25em",
+          color:"rgba(255,255,255,0.07)",
+          marginTop:"-0.1em",
+        }}>SLC</div>
       </div>
 
       {/* ── Full-screen menu overlay ── */}
@@ -214,11 +225,11 @@ export default function Home() {
             <div style={{position:"absolute",bottom:0,left:0,right:0,height:"65%",background:"linear-gradient(to top,rgba(0,0,0,0.92) 0%,transparent 100%)",pointerEvents:"none"}}/>
             <div style={{position:"relative"}}>
               {/* Section tag */}
-              <div style={{...MONO,fontSize:"0.48rem",letterSpacing:"0.26em",textTransform:"uppercase",color:"rgba(255,255,255,0.18)",marginBottom:"0.8rem"}}>
+              <div style={{...MONO,fontSize:"0.48rem",letterSpacing:"0.26em",textTransform:"uppercase",color:"rgba(255,255,255,0.50)",marginBottom:"0.8rem"}}>
                 40°45′N · 111°53′W · Wasatch Front
               </div>
               {/* Tagline */}
-              <p style={{...MONO,fontSize:"clamp(0.78rem,1.8vw,1.05rem)",color:"rgba(255,255,255,0.28)",maxWidth:340,lineHeight:1.9,marginBottom:"1.5rem"}}>
+              <p style={{...MONO,fontSize:"clamp(0.78rem,1.8vw,1.05rem)",color:"rgba(255,255,255,0.65)",maxWidth:340,lineHeight:1.9,marginBottom:"1.5rem"}}>
                 Salt Lake City's AI and crypto builder community.
               </p>
               <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
@@ -244,8 +255,7 @@ export default function Home() {
             transition:"opacity 0.4s ease",
             pointerEvents:eventsOp>0.1?"auto":"none",
           }}>
-            {/* Soft dark background for readability */}
-            <div style={{position:"absolute",inset:0,background:"linear-gradient(to right,rgba(0,0,0,0.88) 0%,rgba(0,0,0,0.60) 70%,transparent 100%)",pointerEvents:"none"}}/>
+            <div style={{position:"absolute",inset:0,background:"linear-gradient(to right,rgba(0,0,0,0.96) 0%,rgba(0,0,0,0.85) 60%,rgba(0,0,0,0.30) 85%,transparent 100%)",pointerEvents:"none"}}/>
             <div style={{position:"relative"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:"1.75rem",flexWrap:"wrap",gap:"0.75rem"}}>
                 <span style={{...BEBAS,fontSize:"clamp(1.8rem,5vw,4rem)",color:"#fff",lineHeight:1}}>Events</span>
@@ -254,10 +264,10 @@ export default function Home() {
                 >Luma →</a>
               </div>
               {EVENTS.map((ev,i)=>(
-                <div key={i} style={{display:"grid",gridTemplateColumns:"4.5rem 1fr auto",gap:"clamp(8px,2vw,20px)",alignItems:"center",padding:"1rem 0",borderTop:"1px solid rgba(255,255,255,0.07)"}}>
-                  <span style={{...MONO,fontSize:"0.52rem",color:"rgba(255,255,255,0.25)",letterSpacing:"0.1em"}}>{ev.date}</span>
+                <div key={i} style={{display:"grid",gridTemplateColumns:"4.5rem 1fr auto",gap:"clamp(8px,2vw,20px)",alignItems:"center",padding:"1.1rem 0",borderTop:"1px solid rgba(255,255,255,0.12)"}}>
+                  <span style={{...MONO,fontSize:"0.52rem",color:"rgba(255,255,255,0.55)",letterSpacing:"0.1em"}}>{ev.date}</span>
                   <span style={{fontSize:"clamp(0.88rem,1.8vw,1.15rem)",fontWeight:600,letterSpacing:"-0.02em",color:"#fff"}}>{ev.title}</span>
-                  <span style={{...MONO,fontSize:"0.44rem",letterSpacing:"0.16em",textTransform:"uppercase",color:"#2563EB",whiteSpace:"nowrap"}}>{ev.type}</span>
+                  <span style={{...MONO,fontSize:"0.44rem",letterSpacing:"0.16em",textTransform:"uppercase",color:"#60A5FA",whiteSpace:"nowrap"}}>{ev.type}</span>
                 </div>
               ))}
               <div style={{borderBottom:"1px solid rgba(255,255,255,0.07)"}}/>
@@ -276,7 +286,7 @@ export default function Home() {
             transition:"opacity 0.4s ease",
             pointerEvents:mediaOp>0.1?"auto":"none",
           }}>
-            <div style={{position:"absolute",inset:0,background:"linear-gradient(to left,rgba(0,0,0,0.88) 0%,rgba(0,0,0,0.60) 70%,transparent 100%)",pointerEvents:"none"}}/>
+            <div style={{position:"absolute",inset:0,background:"linear-gradient(to left,rgba(0,0,0,0.96) 0%,rgba(0,0,0,0.85) 60%,rgba(0,0,0,0.30) 85%,transparent 100%)",pointerEvents:"none"}}/>
             <div style={{position:"relative"}}>
               <span style={{...BEBAS,fontSize:"clamp(1.8rem,5vw,4rem)",color:"#fff",lineHeight:1,display:"block",marginBottom:"1.75rem"}}>
                 Media &amp; Writings
@@ -317,11 +327,13 @@ export default function Home() {
             transition:"opacity 0.4s ease",
             pointerEvents:contactOp>0.1?"auto":"none",
           }}>
-            <div style={{textAlign:"center",maxWidth:520}}>
+            {/* Dark radial backdrop so center text pops */}
+            <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 70% 60% at 50% 50%, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.60) 55%, transparent 100%)",pointerEvents:"none"}}/>
+            <div style={{position:"relative",textAlign:"center",maxWidth:520}}>
               <h2 style={{...BEBAS,fontSize:"clamp(3rem,11vw,9rem)",lineHeight:0.88,color:"#fff",marginBottom:"1.5rem"}}>
                 Get in<br/><span style={{color:"#2563EB"}}>the room.</span>
               </h2>
-              <p style={{...MONO,fontSize:"clamp(0.7rem,1.6vw,0.88rem)",color:"rgba(255,255,255,0.28)",lineHeight:2,marginBottom:"2rem"}}>
+              <p style={{...MONO,fontSize:"clamp(0.7rem,1.6vw,0.88rem)",color:"rgba(255,255,255,0.62)",lineHeight:2,marginBottom:"2rem"}}>
                 Monthly meetups. Builder roundtables.<br/>No hype. Just the work.
               </p>
               <div style={{display:"flex",gap:8,justifyContent:"center",flexWrap:"wrap"}}>
