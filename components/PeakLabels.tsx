@@ -52,8 +52,8 @@ export default function PeakLabels({ getCameraInfo }: Props) {
         const sx = ( proj.x * 0.5 + 0.5) * width;
         const sy = (-proj.y * 0.5 + 0.5) * height;
         const inBounds = proj.z < 1
-          && sx > 50 && sx < width  - 50
-          && sy > 72 && sy < height - 80; // top margin keeps it from nav/edge
+          && sx > 40 && sx < width  - 40
+          && sy > 58 && sy < height - 60; // tight margins — peaks can be near top
         return { name: p.name, elev: p.elev, x: sx, y: sy, raw: inBounds };
       });
 

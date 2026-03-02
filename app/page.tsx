@@ -208,44 +208,44 @@ export default function Home() {
           {/* ── Text block — bottom-anchored ── */}
           <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"0 clamp(20px,5vw,64px) clamp(32px,5vh,64px)", zIndex:2 }}>
 
-            {/* Giant wordmark — fills viewport width */}
-            <div style={{ overflow:"hidden", marginBottom:"0.2em" }}>
-              <h1 style={{
-                ...d(0.1), ...BEBAS,
-                fontSize:"min(20vw, 20rem)",
-                lineHeight:0.88,
-                color:"#fff",
-                margin:0,
-                letterSpacing:"-0.01em",
-              }}>
-                OPEN<span style={{ color:"#2563EB" }}>CLAW</span>
-              </h1>
-            </div>
-
-            {/* Sub-rule row */}
-            <div style={{ ...d(0.25), display:"flex", alignItems:"center", gap:"1rem", marginBottom:"1.5rem" }}>
-              <span style={{ ...MONO, fontSize:"0.52rem", letterSpacing:"0.24em", textTransform:"uppercase", color:"rgba(255,255,255,0.28)", whiteSpace:"nowrap" }}>
-                SLC
-              </span>
-              <div style={{ flex:1, height:1, background:"rgba(255,255,255,0.1)", maxWidth:160 }} />
-              <span style={{ ...MONO, fontSize:"0.46rem", letterSpacing:"0.18em", textTransform:"uppercase", color:"rgba(255,255,255,0.15)", whiteSpace:"nowrap" }}>
-                AI · Crypto · Wasatch
-              </span>
-            </div>
-
-            {/* Tagline + CTA row */}
-            <div style={{ ...d(0.4), display:"flex", alignItems:"flex-end", justifyContent:"space-between", flexWrap:"wrap", gap:"1.5rem" }}>
-              <p style={{ ...MONO, fontSize:"clamp(0.72rem,1.8vw,0.92rem)", color:"rgba(255,255,255,0.22)", lineHeight:1.9, maxWidth:280, margin:0 }}>
-                Salt Lake City's AI and crypto<br />builder community.
-              </p>
-              <div style={{ display:"flex", gap:8, flexShrink:0 }}>
-                <a href="#events" style={{ ...primaryBtn, fontSize:"0.65rem" }}>
-                  See Events →
-                </a>
-                <a href={TELEGRAM} target="_blank" rel="noopener noreferrer" style={{ ...ghostBtn, fontSize:"0.65rem" }}>
-                  Join
-                </a>
+            {/* ── Wordmark: OPENCLAW SLC ── */}
+            <div style={{ marginBottom:"1.25rem" }}>
+              {/* OPENCLAW — fills viewport width */}
+              <div style={{ ...d(0.05), lineHeight:0.86, marginBottom:"0.06em" }}>
+                <span style={{
+                  ...BEBAS,
+                  fontSize:"min(20vw, 19rem)",
+                  color:"#fff",
+                  letterSpacing:"-0.01em",
+                  display:"inline",
+                }}>
+                  OPEN<span style={{ color:"#2563EB" }}>CLAW</span>
+                </span>
               </div>
+              {/* SLC — large but secondary, blue */}
+              <div style={{ ...d(0.15), display:"flex", alignItems:"center", gap:"clamp(0.75rem,2vw,1.5rem)" }}>
+                <span style={{
+                  ...BEBAS,
+                  fontSize:"min(8.5vw, 7.5rem)",
+                  color:"#2563EB",
+                  letterSpacing:"0.04em",
+                }}>SLC</span>
+                <div style={{ height:1, width:"clamp(40px,8vw,120px)", background:"rgba(37,99,235,0.4)" }} />
+                <span style={{ ...MONO, fontSize:"clamp(0.44rem,1.1vw,0.6rem)", letterSpacing:"0.22em", textTransform:"uppercase", color:"rgba(255,255,255,0.18)" }}>
+                  Wasatch Front
+                </span>
+              </div>
+            </div>
+
+            {/* ── Tagline + CTAs ── */}
+            <div style={{ ...d(0.3), display:"flex", alignItems:"center", gap:"clamp(1rem,3vw,2rem)", flexWrap:"wrap" }}>
+              <div style={{ display:"flex", gap:8 }}>
+                <a href="#events" style={primaryBtn}>See Events →</a>
+                <a href={TELEGRAM} target="_blank" rel="noopener noreferrer" style={ghostBtn}>Join</a>
+              </div>
+              <p style={{ ...MONO, fontSize:"clamp(0.62rem,1.4vw,0.78rem)", color:"rgba(255,255,255,0.2)", lineHeight:1.9, margin:0 }}>
+                SLC's AI + crypto builder community.
+              </p>
             </div>
 
           </div>
