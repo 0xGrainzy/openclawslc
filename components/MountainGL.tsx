@@ -4,8 +4,8 @@ import * as THREE from "three";
 
 /* ─────────────────────────────────────────────────────────────────
    Wasatch Front — 3D wireframe mountain range.
-   Real peak positions. Scroll drives 180° orbital camera.
-   Exposes camera via onCameraUpdate for peak-label overlay.
+   Real peak positions. Scroll drives orbital camera.
+   Separate keyframes per device class for correct peak framing.
 ───────────────────────────────────────────────────────────────── */
 
 const PEAKS = [
@@ -37,25 +37,37 @@ function altColor(t: number): [number, number, number] {
   return [0.02 + t * 0.20, 0.04 + t * 0.38, 0.18 + t * 0.72];
 }
 
-const TARGET = new THREE.Vector3(8, 14, 0);
-const KEYFRAMES = [
+/* Camera target — look at upper-middle of the range so peaks aren't clipped */
+const TARGET_DESK   = new THREE.Vector3(8, 18, 0);
+const TARGET_MOBILE = new THREE.Vector3(8, 26, 0); // look higher → peaks drop into frame
+
+/* Desktop: wide panoramic sweep */
+const KEYFRAMES_DESK = [
   { theta:  1.65, phi: 0.30, r: 165 },
   { theta:  0.90, phi: 0.38, r: 140 },
   { theta:  0.10, phi: 0.50, r: 125 },
   { theta: -0.75, phi: 0.42, r: 155 },
 ];
-function orbitPos(theta: number, phi: number, r: number): THREE.Vector3 {
+/* Mobile: higher camera angle so peaks breathe below the top edge */
+const KEYFRAMES_MOB = [
+  { theta:  1.50, phi: 0.52, r: 165 }, // higher phi = camera higher = peaks fall into centre
+  { theta:  0.90, phi: 0.52, r: 140 },
+  { theta:  0.10, phi: 0.60, r: 125 },
+  { theta: -0.60, phi: 0.54, r: 155 },
+];
+
+function orbitPos(theta: number, phi: number, r: number, target: THREE.Vector3): THREE.Vector3 {
   return new THREE.Vector3(
-    TARGET.x + r * Math.cos(phi) * Math.cos(theta),
-    TARGET.y + r * Math.sin(phi),
-    TARGET.z + r * Math.cos(phi) * Math.sin(theta),
+    target.x + r * Math.cos(phi) * Math.cos(theta),
+    target.y + r * Math.sin(phi),
+    target.z + r * Math.cos(phi) * Math.sin(theta),
   );
 }
-function lerpKf(scroll: number, rScale = 1) {
-  const idx  = scroll * (KEYFRAMES.length - 1);
-  const a    = Math.floor(idx), b = Math.min(a + 1, KEYFRAMES.length - 1);
+function lerpKf(scroll: number, kfs: typeof KEYFRAMES_DESK, rScale: number) {
+  const idx  = scroll * (kfs.length - 1);
+  const a    = Math.floor(idx), b = Math.min(a + 1, kfs.length - 1);
   const t    = idx - a, e = t * t * (3 - 2 * t);
-  const A = KEYFRAMES[a], B = KEYFRAMES[b];
+  const A = kfs[a], B = kfs[b];
   return {
     theta: A.theta + (B.theta - A.theta) * e,
     phi:   A.phi   + (B.phi   - A.phi)   * e,
@@ -79,8 +91,12 @@ export default function MountainGL({ onCameraUpdate }: Props) {
     const el = mountRef.current;
     if (!el) return;
 
-    const mobile   = window.innerWidth < 768;
-    const rScale   = mobile ? 1.55 : 1.0;   // pull camera back on mobile
+    const mobile  = window.innerWidth < 768;
+    const rScale  = mobile ? 1.50 : 1.0;
+    const KFS     = mobile ? KEYFRAMES_MOB : KEYFRAMES_DESK;
+    const TARGET  = mobile ? TARGET_MOBILE  : TARGET_DESK;
+    const FOV     = mobile ? 68 : 48;        // wider vertical FOV on mobile portrait
+    const FOG     = mobile ? 0.0028 : 0.0042; // less fog on mobile → peaks stay crisp
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
@@ -88,11 +104,11 @@ export default function MountainGL({ onCameraUpdate }: Props) {
     el.appendChild(renderer.domElement);
 
     const scene  = new THREE.Scene();
-    scene.fog    = new THREE.FogExp2(0x000000, 0.0042);
-    const camera = new THREE.PerspectiveCamera(mobile ? 58 : 48, 1, 0.5, 800);
+    scene.fog    = new THREE.FogExp2(0x000000, FOG);
+    const camera = new THREE.PerspectiveCamera(FOV, 1, 0.5, 800);
 
-    const COLS = mobile ? 100 : 180, ROWS = mobile ? 70 : 130;
-    const XMIN = -55, XMAX = 35, ZMIN = -45, ZMAX = 50, MAX_H = 58;
+    const COLS = mobile ? 110 : 180, ROWS = mobile ? 80 : 130;
+    const XMIN = -55, XMAX = 35, ZMIN = -45, ZMAX = 52, MAX_H = 58;
 
     const H: number[][] = Array.from({length: ROWS}, (_, zi) =>
       Array.from({length: COLS}, (_, xi) => {
@@ -125,14 +141,14 @@ export default function MountainGL({ onCameraUpdate }: Props) {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.Float32BufferAttribute(verts, 3));
     geo.setAttribute("color",    new THREE.Float32BufferAttribute(cols, 3));
-    const mat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.88 });
+    const mat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.90 });
     scene.add(new THREE.LineSegments(geo, mat));
 
     const mouse  = new THREE.Vector2();
     let   scroll = 0;
     const camPos = new THREE.Vector3(), camTgt = new THREE.Vector3().copy(TARGET);
-    const kf0 = lerpKf(0, rScale);
-    camPos.copy(orbitPos(kf0.theta, kf0.phi, kf0.r));
+    const kf0    = lerpKf(0, KFS, rScale);
+    camPos.copy(orbitPos(kf0.theta, kf0.phi, kf0.r, TARGET));
 
     function resize() {
       if (!el) return;
@@ -157,8 +173,8 @@ export default function MountainGL({ onCameraUpdate }: Props) {
     let raf = 0;
     function animate() {
       raf = requestAnimationFrame(animate);
-      const kf  = lerpKf(scroll, rScale);
-      const tgt = orbitPos(kf.theta + mouse.x * 0.05, kf.phi - mouse.y * 0.03, kf.r);
+      const kf  = lerpKf(scroll, KFS, rScale);
+      const tgt = orbitPos(kf.theta + mouse.x * 0.04, kf.phi - mouse.y * 0.025, kf.r, TARGET);
       camPos.lerp(tgt, 0.028);
       camTgt.lerp(TARGET, 0.028);
       camera.position.copy(camPos);

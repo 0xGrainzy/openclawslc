@@ -201,28 +201,53 @@ export default function Home() {
         </nav>
 
         {/* ── HERO ── */}
-        <section style={{ height:"100vh", minHeight:640, position:"relative", display:"flex", flexDirection:"column", justifyContent:"flex-end" }}>
-          <div style={{ position:"absolute", bottom:0, left:0, right:0, height:"60%", background:"linear-gradient(to top, rgba(0,0,0,0.92) 0%, transparent 100%)", pointerEvents:"none" }} />
-          <div style={{ position:"relative", zIndex:2, padding:"0 clamp(20px,4vw,56px) clamp(28px,5vh,72px)" }}>
-            <p style={{ ...d(0.15), ...MONO, fontSize:"0.5rem", letterSpacing:"0.28em", textTransform:"uppercase", color:"rgba(255,255,255,0.18)", marginBottom:"1rem" }}>
-              40°45′N · 111°53′W · Wasatch Front
-            </p>
-            <h1 style={{
-              ...d(0.35), ...BEBAS,
-              fontSize:"clamp(4rem,13vw,17rem)",
-              lineHeight:0.86, color:"#fff", marginBottom:"2rem",
-            }}>
-              Open<br />
-              <span style={{ color:"#2563EB" }}>Claw</span><br />
-              <span style={{ WebkitTextStroke:"1px rgba(255,255,255,0.12)", color:"transparent" }}>SLC</span>
-            </h1>
-            <div style={{ ...d(0.55), display:"flex", alignItems:"center", gap:"1.25rem", flexWrap:"wrap" }}>
-              <a href="#events" style={primaryBtn}>See Events →</a>
-              <a href={TELEGRAM} target="_blank" rel="noopener noreferrer" style={ghostBtn}>Join Telegram</a>
-              <p style={{ ...MONO, fontSize:"0.62rem", color:"rgba(255,255,255,0.18)", lineHeight:1.9, maxWidth:220 }}>
-                SLC's AI + crypto builder community.
-              </p>
+        <section style={{ height:"100vh", minHeight:640, position:"relative" }}>
+          {/* Bottom gradient to ground the text */}
+          <div style={{ position:"absolute", bottom:0, left:0, right:0, height:"52%", background:"linear-gradient(to top, rgba(0,0,0,0.97) 0%, rgba(0,0,0,0.5) 55%, transparent 100%)", pointerEvents:"none" }} />
+
+          {/* ── Text block — bottom-anchored ── */}
+          <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"0 clamp(20px,5vw,64px) clamp(32px,5vh,64px)", zIndex:2 }}>
+
+            {/* Giant wordmark — fills viewport width */}
+            <div style={{ overflow:"hidden", marginBottom:"0.2em" }}>
+              <h1 style={{
+                ...d(0.1), ...BEBAS,
+                fontSize:"min(20vw, 20rem)",
+                lineHeight:0.88,
+                color:"#fff",
+                margin:0,
+                letterSpacing:"-0.01em",
+              }}>
+                OPEN<span style={{ color:"#2563EB" }}>CLAW</span>
+              </h1>
             </div>
+
+            {/* Sub-rule row */}
+            <div style={{ ...d(0.25), display:"flex", alignItems:"center", gap:"1rem", marginBottom:"1.5rem" }}>
+              <span style={{ ...MONO, fontSize:"0.52rem", letterSpacing:"0.24em", textTransform:"uppercase", color:"rgba(255,255,255,0.28)", whiteSpace:"nowrap" }}>
+                SLC
+              </span>
+              <div style={{ flex:1, height:1, background:"rgba(255,255,255,0.1)", maxWidth:160 }} />
+              <span style={{ ...MONO, fontSize:"0.46rem", letterSpacing:"0.18em", textTransform:"uppercase", color:"rgba(255,255,255,0.15)", whiteSpace:"nowrap" }}>
+                AI · Crypto · Wasatch
+              </span>
+            </div>
+
+            {/* Tagline + CTA row */}
+            <div style={{ ...d(0.4), display:"flex", alignItems:"flex-end", justifyContent:"space-between", flexWrap:"wrap", gap:"1.5rem" }}>
+              <p style={{ ...MONO, fontSize:"clamp(0.72rem,1.8vw,0.92rem)", color:"rgba(255,255,255,0.22)", lineHeight:1.9, maxWidth:280, margin:0 }}>
+                Salt Lake City's AI and crypto<br />builder community.
+              </p>
+              <div style={{ display:"flex", gap:8, flexShrink:0 }}>
+                <a href="#events" style={{ ...primaryBtn, fontSize:"0.65rem" }}>
+                  See Events →
+                </a>
+                <a href={TELEGRAM} target="_blank" rel="noopener noreferrer" style={{ ...ghostBtn, fontSize:"0.65rem" }}>
+                  Join
+                </a>
+              </div>
+            </div>
+
           </div>
         </section>
 
