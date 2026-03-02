@@ -317,9 +317,14 @@ export default function Home() {
       </nav>
 
       {/* ═══════════════════════════════════════════════════════
-          SCROLL DRIVER  800vh
+          SCROLL DRIVER  800vh — with snap points
       ═══════════════════════════════════════════════════════ */}
-      <div style={{height:"800vh"}}>
+      <div style={{height:"800vh", position:"relative"}}>
+        {/* Snap targets at each section */}
+        <div className="snap-section" style={{position:"absolute",top:"0%",height:"1px"}} />
+        <div className="snap-section" style={{position:"absolute",top:"26%",height:"1px"}} />
+        <div className="snap-section" style={{position:"absolute",top:"54%",height:"1px"}} />
+        <div className="snap-section" style={{position:"absolute",top:"82%",height:"1px"}} />
         <div style={{position:"sticky",top:0,height:"100vh",overflow:"hidden"}}>
 
           {/* HERO — bottom text */}

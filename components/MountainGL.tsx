@@ -280,6 +280,8 @@ export default function MountainGL({ onCameraUpdate }: Props) {
         }
       }
     }
+    // Keep a copy of base positions for ripple animation
+    const frontBasePos = new Float32Array(verts);
 
     /* ─── Build back range mesh ─────────────────────────────── */
     const B_COLS = mobile ? 100 : 160;
@@ -316,6 +318,7 @@ export default function MountainGL({ onCameraUpdate }: Props) {
       }
     }
 
+    const backBasePos = new Float32Array(bVerts);
     const bGeo = new THREE.BufferGeometry();
     bGeo.setAttribute("position", new THREE.Float32BufferAttribute(bVerts, 3));
     bGeo.setAttribute("color", new THREE.Float32BufferAttribute(bCols, 3));
@@ -347,8 +350,9 @@ export default function MountainGL({ onCameraUpdate }: Props) {
     scene.add(new THREE.LineSegments(skirtGeo, skirtMat));
 
     /* ─── Front range mesh ───────────────────────────────────── */
+    const frontPosArray = new Float32Array(verts);
     const geo = new THREE.BufferGeometry();
-    geo.setAttribute("position", new THREE.Float32BufferAttribute(verts, 3));
+    geo.setAttribute("position", new THREE.BufferAttribute(frontPosArray, 3));
     geo.setAttribute("color", new THREE.Float32BufferAttribute(colA, 3));
     const mat = new THREE.LineBasicMaterial({ vertexColors: true, opacity: 0.90, transparent: true });
     scene.add(new THREE.LineSegments(geo, mat));
@@ -486,6 +490,58 @@ export default function MountainGL({ onCameraUpdate }: Props) {
 
       // Expire old ripples
       while (ripples.length > 0 && clock - ripples[0].t > 4) ripples.shift();
+
+      // Ripple the mountain meshes too
+      function applyMtnRipple(baseArr: Float32Array, liveArr: Float32Array, geoObj: THREE.BufferGeometry) {
+        for (let i = 0; i < liveArr.length; i += 3) {
+          const bx = baseArr[i], by = baseArr[i + 1], bz = baseArr[i + 2];
+          let yOff = 0;
+          for (const rip of ripples) {
+            const age = clock - rip.t;
+            if (age > 4) continue;
+            const dx = bx - rip.x;
+            const dz = bz - rip.z;
+            const dist = Math.sqrt(dx * dx + dz * dz);
+            const rippleRadius = age * 35;
+            const ringDist = Math.abs(dist - rippleRadius);
+            const ringWidth = 15;
+            if (ringDist < ringWidth) {
+              const ringStrength = (1 - ringDist / ringWidth);
+              const decay = Math.exp(-age * 1.0);
+              const distDecay = Math.exp(-dist * 0.006);
+              // Scale wave by base height — higher terrain gets bigger waves
+              const heightScale = 0.5 + (by / MAX_H) * 1.5;
+              yOff += Math.sin(dist * 0.25 - age * 5) * ringStrength * decay * distDecay * 0.8 * heightScale;
+            }
+          }
+          // Ambient breathing
+          yOff += Math.sin(bx * 0.05 + clock * 0.6) * Math.sin(bz * 0.04 + clock * 0.5) * 0.12;
+          liveArr[i + 1] = by + yOff;
+        }
+        (geoObj.attributes.position as THREE.BufferAttribute).needsUpdate = true;
+      }
+      applyMtnRipple(frontBasePos, frontPosArray, geo);
+
+      // Back range ripple (subtler)
+      const bPosArr = bGeo.attributes.position.array as Float32Array;
+      for (let i = 0; i < bPosArr.length; i += 3) {
+        const by = backBasePos[i + 1];
+        const bx = backBasePos[i], bz = backBasePos[i + 2];
+        let yOff = Math.sin(bx * 0.04 + clock * 0.4) * Math.sin(bz * 0.03 + clock * 0.35) * 0.10;
+        for (const rip of ripples) {
+          const age = clock - rip.t;
+          if (age > 4) continue;
+          const dist = Math.sqrt((bx - rip.x) * (bx - rip.x) + (bz - rip.z) * (bz - rip.z));
+          const rippleRadius = age * 35;
+          const ringDist = Math.abs(dist - rippleRadius);
+          if (ringDist < 18) {
+            const rs = (1 - ringDist / 18) * Math.exp(-age * 1.2) * Math.exp(-dist * 0.008);
+            yOff += Math.sin(dist * 0.2 - age * 4.5) * rs * 0.5;
+          }
+        }
+        bPosArr[i + 1] = by + yOff;
+      }
+      (bGeo.attributes.position as THREE.BufferAttribute).needsUpdate = true;
 
       renderer.render(scene, camera);
       if (el) onCameraUpdate?.({ camera, width: el.clientWidth, height: el.clientHeight });
