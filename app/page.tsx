@@ -1,9 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import type { CameraInfo } from "@/components/MountainGL";
-import PeakLabels from "@/components/PeakLabels";
-
 const MountainGL = dynamic(() => import("@/components/MountainGL"), { ssr: false });
 
 /* ─── Social links ────────────────────────────────────────────── */
@@ -72,7 +69,6 @@ export default function Home() {
   const [scroll,   setScroll]   = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const cameraRef               = useRef<CameraInfo | null>(null);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -97,8 +93,6 @@ export default function Home() {
     return () => window.removeEventListener("scroll", fn);
   }, [menuOpen]);
 
-  const handleCameraUpdate = useCallback((info: CameraInfo) => { cameraRef.current = info; }, []);
-  const getCameraInfo      = useCallback(() => cameraRef.current, []);
 
   const goTo = (frac: number) => {
     window.scrollTo({ top: (document.body.scrollHeight - window.innerHeight) * frac, behavior:"smooth" });
@@ -116,8 +110,8 @@ export default function Home() {
   return (
     <>
       {/* ── 3D mountain — fixed background ── */}
-      <MountainGL onCameraUpdate={handleCameraUpdate} />
-      <PeakLabels getCameraInfo={getCameraInfo} />
+      <MountainGL  />
+      
 
       {/* ═══════════════════════════════════════════════════════
           OPENCLAW SLC — THE FOCAL POINT
