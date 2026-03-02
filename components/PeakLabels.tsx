@@ -3,19 +3,19 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import type { CameraInfo } from "./MountainGL";
 
-const MAX_H = 20;
+const MAX_H = 30;
 
-// Matches peak positions in MountainGL.tsx — Central Wasatch only
+// Matches peaks in MountainGL.tsx exactly
 const PEAKS_DEF = [
-  { name:"Grandeur",     elev:"9,299′",  wx:  8, wy: 0.58*MAX_H, wz: +16 },
-  { name:"Mt Olympus",   elev:"9,030′",  wx: 10, wy: 0.67*MAX_H, wz: +10 },
-  { name:"Mt Raymond",   elev:"10,241′", wx: 13, wy: 0.79*MAX_H, wz:  +6 },
-  { name:"Gobblers Knob",elev:"10,246′", wx: 14, wy: 0.76*MAX_H, wz:  +1 },
-  { name:"Mt Superior",  elev:"11,032′", wx: 16, wy: 0.93*MAX_H, wz:  -1 },
-  { name:"Broads Fork",  elev:"11,330′", wx: 17, wy: 1.00*MAX_H, wz:  -2 },
-  { name:"Pfeifferhorn", elev:"11,325′", wx: 18, wy: 0.97*MAX_H, wz:  -6 },
-  { name:"Lone Peak",    elev:"11,253′", wx: 16, wy: 0.92*MAX_H, wz: -14 },
-  { name:"Box Elder",    elev:"11,101′", wx: 15, wy: 0.78*MAX_H, wz: -20 },
+  { name:"Grandeur",     elev:"9,299′",  wx:  8, wy: 0.12*MAX_H, wz: +16 },
+  { name:"Mt Olympus",   elev:"9,030′",  wx: 10, wy: 0.30*MAX_H, wz: +10 },
+  { name:"Mt Raymond",   elev:"10,241′", wx: 13, wy: 0.52*MAX_H, wz:  +5 },
+  { name:"Kessler Peak", elev:"10,403′", wx: 14, wy: 0.62*MAX_H, wz:  +1 },
+  { name:"Mt Superior",  elev:"11,032′", wx: 16, wy: 0.84*MAX_H, wz:  -3 },
+  { name:"Broads Fork",  elev:"11,330′", wx: 17, wy: 1.00*MAX_H, wz:  -7 },
+  { name:"Pfeifferhorn", elev:"11,325′", wx: 18, wy: 0.96*MAX_H, wz: -11 },
+  { name:"Lone Peak",    elev:"11,253′", wx: 16, wy: 0.80*MAX_H, wz: -17 },
+  { name:"Box Elder",    elev:"11,101′", wx: 15, wy: 0.52*MAX_H, wz: -23 },
 ];
 
 const LABEL_W  = 86;
@@ -28,7 +28,6 @@ interface Placed {
   lx: number; ly: number;
   stemH: number;
 }
-
 interface Props { getCameraInfo: () => CameraInfo | null }
 
 export default function PeakLabels({ getCameraInfo }: Props) {
@@ -45,7 +44,7 @@ export default function PeakLabels({ getCameraInfo }: Props) {
 
       const visible: Array<{ name:string; elev:string; px:number; py:number }> = [];
       for (const p of PEAKS_DEF) {
-        vec.set(p.wx, p.wy + 1.5, p.wz);
+        vec.set(p.wx, p.wy + 1.0, p.wz);
         const proj = vec.clone().project(camera);
         if (proj.z >= 1) continue;
         const px = ( proj.x * 0.5 + 0.5) * width;
@@ -53,7 +52,6 @@ export default function PeakLabels({ getCameraInfo }: Props) {
         if (px < 14 || px > width - 14 || py < 58 || py > height - 24) continue;
         visible.push({ name: p.name, elev: p.elev, px, py });
       }
-
       visible.sort((a, b) => a.px - b.px);
 
       const result: Placed[] = [];
@@ -86,7 +84,7 @@ export default function PeakLabels({ getCameraInfo }: Props) {
               letterSpacing:"0.08em", color:"rgba(96,165,250,0.92)", whiteSpace:"nowrap" }}>{p.elev}</div>
           </div>
           <div style={{ position:"absolute", left:p.px-0.5, top:p.ly+LABEL_H, width:1, height:p.stemH,
-            background:"linear-gradient(to bottom,rgba(96,165,250,0.62) 0%,rgba(96,165,250,0.08) 100%)" }}/>
+            background:"linear-gradient(to bottom,rgba(96,165,250,0.62) 0%,rgba(96,165,250,0.06) 100%)" }}/>
           <div style={{ position:"absolute", left:p.px-2.5, top:p.py-2.5, width:5, height:5,
             borderRadius:"50%", background:"#93C5FD", boxShadow:"0 0 6px 2px rgba(147,197,253,0.55)" }}/>
         </div>

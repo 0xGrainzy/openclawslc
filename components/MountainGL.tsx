@@ -37,44 +37,42 @@ import * as THREE from "three";
   KF[4]  θ=3π       West  — full circle complete
 */
 
-const MAX_H = 20; // flat relief — height:N-S ratio ≈ 1:5.5  (matches Andy Earl oblique map)
+const MAX_H = 30; // height:N-S ≈ 1:3.7 — enough relief to read individual peaks
 
 /*
-  Peaks ordered north (left on west view) → south (right).
-  Positions calibrated to the Andy Earl map.
-  sx/sz = Gaussian half-widths; wider = broader, smoother base.
+  KEY FIX: narrow Gaussians (sz=2.5–3) with 4–6 unit Z-spacing.
+  Overlap check with sz=2.5, spacing=4: exp(-(4/2.5)²) = 0.077 → 8% overlap.
+  Peaks are individually visible instead of merging into a plateau.
+
+  Peaks north→south (left→right on west face view).
 */
 const PEAKS = [
-  // ── North / NW flank — noticeably lower ─────────────────────
-  { x:  8, z: +16, h: 0.43, sx:11, sz:10 }, // Grandeur Peak    9,299′  (low, wide base)
-  { x: 10, z: +10, h: 0.50, sx: 9, sz: 8 }, // Mt Olympus       9,030′  (isolated NW)
+  // ── North end — low, wide base ───────────────────────────────
+  { x:  8, z: +16, h: 0.12, sx: 8, sz: 6.0 }, // Grandeur        9,299′  (very low)
+  { x: 10, z: +10, h: 0.30, sx: 4, sz: 3.5 }, // Mt Olympus      9,030′  (isolated)
 
-  // ── Transition zone — rising toward crest ───────────────────
-  { x: 13, z:  +6, h: 0.72, sx: 7, sz: 6 }, // Mount Raymond   10,241′
-  { x: 14, z:  +3, h: 0.70, sx: 6, sz: 5 }, // Kessler Peak    10,403′
-  { x: 14, z:  +1, h: 0.68, sx: 6, sz: 5 }, // Gobblers Knob   10,246′
+  // ── Rising toward crest — 4-unit spacing, sz=2.5 ────────────
+  { x: 13, z:  +5, h: 0.52, sx: 3, sz: 2.5 }, // Mount Raymond  10,241′
+  { x: 14, z:  +1, h: 0.62, sx: 3, sz: 2.5 }, // Kessler Peak   10,403′
 
-  // ── High central crest ───────────────────────────────────────
-  { x: 16, z:  -1, h: 0.92, sx: 6, sz: 5 }, // Mount Superior  11,032′
-  { x: 17, z:  -2, h: 1.00, sx: 6, sz: 6 }, // Broads Fork Twins 11,330′ ← highest
-  { x: 18, z:  -4, h: 0.88, sx: 5, sz: 5 }, // Hidden Peak     10,932′
-  { x: 18, z:  -6, h: 0.96, sx: 5, sz: 5 }, // Pfeifferhorn    11,325′
-  { x: 18, z:  -8, h: 0.95, sx: 6, sz: 5 }, // AF Twin Peaks   11,329′
-  { x: 17, z: -10, h: 0.93, sx: 6, sz: 5 }, // White Baldy     11,321′
+  // ── High central crest — 4-unit spacing ─────────────────────
+  { x: 16, z:  -3, h: 0.84, sx: 3, sz: 2.5 }, // Mount Superior 11,032′
+  { x: 17, z:  -7, h: 1.00, sx: 3, sz: 3.0 }, // Broads Fork    11,330′ ← HIGHEST
+  { x: 18, z: -11, h: 0.96, sx: 3, sz: 2.5 }, // Pfeifferhorn   11,325′
 
-  // ── Lone Peak massif (saddle separates from main crest) ─────
-  { x: 16, z: -14, h: 0.90, sx: 7, sz: 6 }, // Lone Peak       11,253′
+  // ── Lone Peak — 6-unit saddle break ─────────────────────────
+  { x: 16, z: -17, h: 0.80, sx: 3, sz: 3.0 }, // Lone Peak      11,253′
 
-  // ── Southern tail — tapering ────────────────────────────────
-  { x: 15, z: -20, h: 0.72, sx: 8, sz: 7 }, // Box Elder Peak  11,101′
+  // ── South tail ───────────────────────────────────────────────
+  { x: 15, z: -23, h: 0.52, sx: 5, sz: 4.0 }, // Box Elder      11,101′
 
-  // ── Ridge backbone — long, low, ties everything together ────
-  { x: 15, z:   0, h: 0.35, sx: 5, sz:22 }, // ridge spine
+  // ── Background dome — overall whale shape ───────────────────
+  { x: 15, z:  -4, h: 0.20, sx: 6, sz:25.0 }, // range spine (low, wide)
 ];
 
 function terrainH(wx: number, wz: number): number {
-  // Broad base that rises west→east
-  const base = Math.max(0, (wx + 65) / 150) * 0.14;
+  // Minimal base — peaks dominate, not the terrain ramp
+  const base = Math.max(0, (wx + 65) / 150) * 0.04;
   let h = base;
   for (const p of PEAKS) {
     const dx = (wx - p.x) / p.sx;
@@ -213,9 +211,8 @@ export default function MountainGL({ onCameraUpdate }: Props) {
         seg(wx0,H[zi][xi],wz,wx1,H[zi][xi+1],wz);
       }
     }
-    // Z-direction columns at 25% density — eliminates "vertical wall" look
-    // Sparse columns keep depth cues without solid-wall effect
-    for(let xi=0;xi<COLS;xi+=4){
+    // Z-direction columns at ~17% density — clean depth cues, no wall effect
+    for(let xi=0;xi<COLS;xi+=6){
       const wx=XMIN+(xi/(COLS-1))*(XMAX-XMIN);
       for(let zi=0;zi<ROWS-1;zi++){
         const wz0=ZMIN+(zi/(ROWS-1))*(ZMAX-ZMIN);
