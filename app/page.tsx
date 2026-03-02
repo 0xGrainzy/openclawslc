@@ -1,577 +1,525 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import Nav from "@/components/Nav";
-import MountainHero from "@/components/MountainHero";
+import dynamic from "next/dynamic";
+
+const TopoCanvas = dynamic(() => import("@/components/TopoCanvas"), { ssr: false });
 
 /* ─── Data ────────────────────────────────────────────────────── */
-
 const EVENTS = [
-  {
-    month: "MAR",
-    day: "20",
-    title: "AI Agents & Crypto Infrastructure",
-    type: "Meetup",
-    location: "Salt Lake City, UT",
-    desc: "Monthly builders meetup — agents, protocols, and the people shipping them.",
-  },
-  {
-    month: "APR",
-    day: "10",
-    title: "DeFi x AI: The New Stack",
-    type: "Panel",
-    location: "SLC",
-    desc: "How AI agent economics are reshaping DeFi liquidity and autonomous finance.",
-  },
-  {
-    month: "APR",
-    day: "24",
-    title: "Founders Roundtable",
-    type: "Invite Only",
-    location: "Salt Lake City",
-    desc: "Small group, real conversations. Founders working at the frontier of AI + crypto.",
-  },
+  { n: "01", title: "AI Agents & Crypto Infrastructure", type: "Meetup",       date: "MAR 20", loc: "SLC, UT" },
+  { n: "02", title: "DeFi × AI: The New Stack",          type: "Panel",        date: "APR 10", loc: "SLC, UT" },
+  { n: "03", title: "Founders Roundtable",               type: "Invite Only",  date: "APR 24", loc: "SLC, UT" },
+  { n: "04", title: "Builder Demo Night",                type: "Open Event",   date: "MAY 08", loc: "SLC, UT" },
 ];
 
-const TEAM = [
-  {
-    name: "Grant Stellmacher",
-    handle: "@grantstell",
-    role: "Finance Architect",
-    co: "Anchorage Digital",
-    coUrl: "https://anchorage.com",
-    bio: "CPA, Finance Architect at Anchorage Digital. Building Clawford — the credentialed agent marketplace.",
-    xUrl: "https://x.com/grantstell",
-    tag: "Organizer",
-  },
-  {
-    name: "TBD",
-    handle: "—",
-    role: "Co-Organizer",
-    co: "",
-    coUrl: "",
-    bio: "Interested in co-organizing? Reach out.",
-    xUrl: "#join",
-    tag: "Open",
-  },
-];
-
-const BUILDERS: { name: string; url: string }[][] = [
-  [
-    { name: "Anchorage Digital", url: "https://anchorage.com" },
-    { name: "Coinbase", url: "https://coinbase.com" },
-    { name: "Alchemy", url: "https://alchemy.com" },
-    { name: "Circle", url: "https://circle.com" },
-    { name: "Solana Labs", url: "https://solanalabs.com" },
-    { name: "Base", url: "https://base.org" },
-    { name: "Kraken", url: "https://kraken.com" },
-    { name: "Avalanche", url: "https://avax.network" },
-  ],
-  [
-    { name: "TaxBit", url: "https://taxbit.com" },
-    { name: "MoonTax", url: "https://moontax.com" },
-    { name: "tZERO", url: "https://tzero.com" },
-    { name: "Jito", url: "https://jito.network" },
-    { name: "Helius", url: "https://helius.dev" },
-    { name: "Noves", url: "https://noves.fi" },
-    { name: "Backpack", url: "https://backpack.app" },
-    { name: "Paxos", url: "https://paxos.com" },
-  ],
-  [
-    { name: "SphereOne", url: "https://sphereone.xyz" },
-    { name: "Panoptic", url: "https://panoptic.xyz" },
-    { name: "Ranger Finance", url: "https://ranger.finance" },
-    { name: "Chainalysis", url: "https://chainalysis.com" },
-    { name: "Amberdata", url: "https://amberdata.io" },
-    { name: "CoinTracker", url: "https://cointracker.com" },
-    { name: "Metallicus", url: "https://metallicus.com" },
-    { name: "mtndao", url: "https://x.com/mtndao" },
-  ],
+const BUILDERS = [
+  "Anchorage Digital","Coinbase","Alchemy","Circle","Solana Labs","Base","Kraken","Avalanche",
+  "TaxBit","MoonTax","tZERO","Jito","Helius","Noves","Backpack","Paxos",
+  "SphereOne","Panoptic","Ranger Finance","Chainalysis","Amberdata","CoinTracker","Metallicus","mtndao",
+  "Offchain Labs","DataHaven","Redstone","Toniq Labs","DeFi Kingdoms","Azura","Tally","HIFI Bridge",
+  "Canton Network","Bracket","WolvesDAO","TapTools","Exponential","CoinTracker","PrimeVault","Nomyx",
 ];
 
 const COMMUNITIES = [
-  {
-    name: "Utah Crypto Club",
-    url: "https://utahcrypto.xyz",
-    desc: "Utah's largest crypto community. Monthly events and meetups in SLC and Utah County.",
-    tags: ["Crypto", "Meetups", "All Levels"],
-  },
-  {
-    name: "Salt Lake Bitcoin",
-    url: "https://meetup.com/meetup-group-zuyvgaos",
-    desc: "Monthly Bitcoin and Lightning meetup. Bitcoin Brunch series. Open to all levels.",
-    tags: ["Bitcoin", "Lightning", "Monthly"],
-  },
-  {
-    name: "mtndao",
-    url: "https://x.com/mtndao",
-    desc: "World-class hacker residency for Solana builders, held in Salt Lake City.",
-    tags: ["Solana", "Builders", "Residency"],
-  },
-  {
-    name: "Utah Blockchain Coalition",
-    url: "https://utahblockchain.org",
-    desc: "Working to establish Utah as a leader in blockchain tech and crypto policy.",
-    tags: ["Policy", "Advocacy", "Legislation"],
-  },
+  { name: "Utah Crypto Club",         url: "https://utahcrypto.xyz",                         desc: "Utah's largest crypto community. Monthly events, SLC + Utah County." },
+  { name: "Salt Lake Bitcoin",        url: "https://meetup.com/meetup-group-zuyvgaos",        desc: "Monthly Bitcoin & Lightning meetup. Bitcoin Brunch. All levels." },
+  { name: "mtndao",                   url: "https://x.com/mtndao",                            desc: "Elite Solana builder residency. Semi-annual summits in SLC." },
+  { name: "Utah Blockchain Coalition",url: "https://utahblockchain.org",                      desc: "Establishing Utah as a leader in blockchain policy and legislation." },
 ];
 
-/* ─── Fade-in hook ────────────────────────────────────────────── */
-function useFadeIn(threshold = 0.15) {
+/* ─── FadeIn hook ─────────────────────────────────────────────── */
+function useFade(threshold = 0.1) {
   const ref = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
+  const [vis, setVis] = useState(false);
   useEffect(() => {
-    const obs = new IntersectionObserver(
-      ([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect(); } },
-      { threshold }
-    );
-    if (ref.current) obs.observe(ref.current);
-    return () => obs.disconnect();
+    const o = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setVis(true); o.disconnect(); } }, { threshold });
+    if (ref.current) o.observe(ref.current);
+    return () => o.disconnect();
   }, [threshold]);
-  return { ref, visible };
+  return { ref, vis };
 }
 
-/* ─── Section wrapper ─────────────────────────────────────────── */
-function Section({ id, children, style }: { id?: string; children: React.ReactNode; style?: React.CSSProperties }) {
-  const { ref, visible } = useFadeIn();
-  return (
-    <section
-      id={id}
-      ref={ref}
-      style={{
-        padding: "120px clamp(20px,6vw,80px)",
-        maxWidth: 1200,
-        margin: "0 auto",
-        opacity: visible ? 1 : 0,
-        transform: visible ? "translateY(0)" : "translateY(32px)",
-        transition: "opacity 0.75s ease, transform 0.75s ease",
-        ...style,
-      }}
-    >
-      {children}
-    </section>
-  );
+/* ─── Animated counter ────────────────────────────────────────── */
+function Counter({ to, suffix = "" }: { to: number; suffix?: string }) {
+  const [val, setVal] = useState(0);
+  const { ref, vis } = useFade(0.5);
+  useEffect(() => {
+    if (!vis) return;
+    let start: number;
+    const step = (ts: number) => {
+      if (!start) start = ts;
+      const p = Math.min((ts - start) / 1200, 1);
+      setVal(Math.round(p * to));
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, [vis, to]);
+  return <span ref={ref}>{val.toLocaleString()}{suffix}</span>;
 }
 
-/* ─── Main Page ───────────────────────────────────────────────── */
+/* ─── Page ────────────────────────────────────────────────────── */
 export default function Home() {
+  const [time, setTime] = useState("");
+  useEffect(() => {
+    const tick = () => setTime(new Date().toLocaleTimeString("en-US", { hour12: false, timeZone: "America/Denver" }));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
+
   return (
-    <main style={{ background: "#020B1E", minHeight: "100vh" }}>
-      <Nav />
+    <main style={{ background: "#04080F" }}>
 
-      {/* ════════════════ HERO ════════════════ */}
-      <div
-        style={{
-          position: "relative",
-          height: "100vh",
-          minHeight: 700,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          overflow: "hidden",
-        }}
-      >
-        <MountainHero />
-
-        {/* Hero content */}
-        <div
-          style={{
-            position: "relative",
-            zIndex: 10,
-            textAlign: "center",
-            padding: "0 clamp(20px,5vw,60px)",
-            maxWidth: 880,
-            animation: "fade-up 1s ease 0.2s both",
-          }}
-        >
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-              fontSize: "0.6rem",
-              letterSpacing: "0.28em",
-              textTransform: "uppercase",
-              color: "#60A5FA",
-              border: "1px solid rgba(96,165,250,0.28)",
-              padding: "5px 14px",
-              marginBottom: "2rem",
-              backdropFilter: "blur(8px)",
-              background: "rgba(5,27,63,0.3)",
-            }}
-          >
-            <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#60A5FA", display: "inline-block", boxShadow: "0 0 6px #60A5FA" }} />
-            Salt Lake City · Wasatch Front
-          </div>
-
-          <h1
-            style={{
-              fontSize: "clamp(3rem, 9vw, 7.5rem)",
-              fontWeight: 900,
-              letterSpacing: "-0.04em",
-              lineHeight: 0.95,
-              marginBottom: "1.5rem",
-              color: "#EFF6FF",
-            }}
-          >
-            <span className="text-gradient">Build</span>{" "}
-            <span style={{ color: "rgba(239,246,255,0.85)" }}>at the</span>
-            <br />
-            <span className="text-gradient-blue">frontier</span>
-            <span style={{ color: "rgba(239,246,255,0.85)" }}>.</span>
-          </h1>
-
-          <p
-            style={{
-              fontSize: "clamp(1rem, 2vw, 1.2rem)",
-              color: "rgba(239,246,255,0.60)",
-              maxWidth: 580,
-              margin: "0 auto 2.5rem",
-              lineHeight: 1.65,
-              animation: "fade-up 1s ease 0.45s both",
-            }}
-          >
-            Salt Lake City's community for AI agent builders, crypto founders,
-            and the people shipping the next wave. Monthly events across the Wasatch.
-          </p>
-
-          <div
-            style={{
-              display: "flex",
-              gap: 12,
-              justifyContent: "center",
-              flexWrap: "wrap",
-              animation: "fade-up 1s ease 0.65s both",
-            }}
-          >
-            <a
-              href="#events"
-              style={{
-                padding: "14px 32px",
-                background: "#1D4ED8",
-                color: "#EFF6FF",
-                fontSize: "0.72rem",
-                letterSpacing: "0.18em",
-                textTransform: "uppercase",
-                fontWeight: 700,
-                textDecoration: "none",
-                transition: "background 0.2s, transform 0.2s",
-                border: "1px solid transparent",
-              }}
-              onMouseEnter={e => { (e.target as HTMLElement).style.background = "#2563EB"; (e.target as HTMLElement).style.transform = "translateY(-1px)"; }}
-              onMouseLeave={e => { (e.target as HTMLElement).style.background = "#1D4ED8"; (e.target as HTMLElement).style.transform = ""; }}
-            >
-              See Events →
+      {/* ══════════════════════════════════════════
+          NAV
+      ══════════════════════════════════════════ */}
+      <header style={{
+        position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "0 clamp(24px,4vw,60px)", height: 56,
+        borderBottom: "1px solid rgba(255,255,255,0.05)",
+        background: "rgba(4,8,15,0.82)",
+        backdropFilter: "blur(20px)",
+      }}>
+        <a href="/" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 10 }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <path d="M2,20 L7,9 L11,14 L15,6 L20,16 L22,20" stroke="#3B82F6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+            <path d="M9,20 Q11,14 13,20" stroke="#60A5FA" strokeWidth="1.8" strokeLinecap="round" fill="none"/>
+            <path d="M12,20 Q14,13 16,20" stroke="#93C5FD" strokeWidth="1.4" strokeLinecap="round" fill="none"/>
+          </svg>
+          <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "1rem", letterSpacing: "0.18em", color: "#fff" }}>
+            OpenClaw <span style={{ color: "#3B82F6" }}>SLC</span>
+          </span>
+        </a>
+        <nav style={{ display: "flex", gap: "2.5rem", alignItems: "center" }}>
+          {["Events","Builders","Community"].map(l => (
+            <a key={l} href={`#${l.toLowerCase()}`} className="link-ul" style={{ fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase" }}>
+              {l}
             </a>
-            <a
-              href="#join"
-              style={{
-                padding: "14px 32px",
-                background: "rgba(5,27,63,0.5)",
-                color: "#BAE6FD",
-                fontSize: "0.72rem",
-                letterSpacing: "0.18em",
-                textTransform: "uppercase",
-                fontWeight: 600,
-                textDecoration: "none",
-                border: "1px solid rgba(96,165,250,0.3)",
-                backdropFilter: "blur(8px)",
-                transition: "border-color 0.2s, background 0.2s",
-              }}
-              onMouseEnter={e => { (e.target as HTMLElement).style.borderColor = "rgba(96,165,250,0.6)"; }}
-              onMouseLeave={e => { (e.target as HTMLElement).style.borderColor = "rgba(96,165,250,0.3)"; }}
-            >
-              Join Community
-            </a>
-          </div>
-        </div>
-
-        {/* Scroll indicator */}
-        <div
-          style={{
-            position: "absolute",
-            bottom: 40,
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: 10,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 6,
-            opacity: 0.45,
+          ))}
+          <a href="#join" style={{
+            fontSize: "0.62rem", letterSpacing: "0.18em", textTransform: "uppercase",
+            fontWeight: 600, padding: "7px 18px",
+            background: "#1D4ED8", color: "#fff", textDecoration: "none",
+            transition: "background 0.2s",
           }}
-        >
-          <span style={{ fontSize: "0.55rem", letterSpacing: "0.25em", textTransform: "uppercase", color: "#60A5FA" }}>Scroll</span>
-          <div style={{ width: 1, height: 40, background: "linear-gradient(to bottom, rgba(96,165,250,0.6), transparent)", animation: "scroll-indicator 2s ease-in-out infinite" }} />
-        </div>
-      </div>
+          onMouseEnter={e => (e.currentTarget.style.background = "#2563EB")}
+          onMouseLeave={e => (e.currentTarget.style.background = "#1D4ED8")}
+          >Join →</a>
+        </nav>
+      </header>
 
-      {/* ── Divider line ── */}
-      <div style={{ height: 1, background: "linear-gradient(to right, transparent, rgba(96,165,250,0.15), transparent)", margin: "0 clamp(20px,6vw,80px)" }} />
+      {/* ══════════════════════════════════════════
+          HERO
+      ══════════════════════════════════════════ */}
+      <section style={{
+        position: "relative", height: "100vh", minHeight: 700,
+        overflow: "hidden", display: "flex", flexDirection: "column",
+        justifyContent: "flex-end",
+      }}>
+        <TopoCanvas />
 
-      {/* ════════════════ EVENTS ════════════════ */}
-      <Section id="events">
-        <div className="section-label">Events Calendar</div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "3rem", flexWrap: "wrap", gap: "1rem" }}>
-          <h2 className="section-title">
-            What's happening<br />
-            <span className="text-gradient-blue">in the Wasatch</span>
-          </h2>
-          <a
-            href="https://luma.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", color: "#60A5FA", textDecoration: "none", border: "1px solid rgba(96,165,250,0.25)", padding: "8px 16px", whiteSpace: "nowrap" }}
-          >
-            View All on Luma →
-          </a>
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "1px", background: "rgba(96,165,250,0.08)" }}>
-          {EVENTS.map((ev) => (
-            <div
-              key={ev.title}
-              className="glass glass-hover"
-              style={{ padding: "2rem", cursor: "pointer" }}
-            >
-              <div style={{ display: "flex", gap: "1.25rem", alignItems: "flex-start" }}>
-                {/* Date block */}
-                <div style={{ textAlign: "center", minWidth: 52, flexShrink: 0 }}>
-                  <div style={{ fontSize: "0.55rem", letterSpacing: "0.2em", color: "#60A5FA", textTransform: "uppercase" }}>{ev.month}</div>
-                  <div style={{ fontSize: "2.2rem", fontWeight: 800, lineHeight: 1, color: "#EFF6FF", fontVariantNumeric: "tabular-nums" }}>{ev.day}</div>
-                </div>
-                {/* Content */}
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", gap: 8, marginBottom: "0.6rem", alignItems: "center" }}>
-                    <span style={{ fontSize: "0.55rem", letterSpacing: "0.15em", textTransform: "uppercase", color: "#60A5FA", border: "1px solid rgba(96,165,250,0.3)", padding: "2px 8px" }}>{ev.type}</span>
-                    <span style={{ fontSize: "0.62rem", color: "rgba(239,246,255,0.35)" }}>{ev.location}</span>
-                  </div>
-                  <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "#EFF6FF", marginBottom: "0.4rem", lineHeight: 1.3 }}>{ev.title}</h3>
-                  <p style={{ fontSize: "0.8rem", color: "rgba(239,246,255,0.5)", lineHeight: 1.6 }}>{ev.desc}</p>
-                </div>
-              </div>
+        {/* Telemetry overlay — top-left */}
+        <div style={{
+          position: "absolute", top: 80, left: "clamp(24px,4vw,60px)",
+          zIndex: 10, display: "flex", flexDirection: "column", gap: 4,
+          animation: "reveal 1s ease 1.2s both",
+        }}>
+          {[
+            ["LAT", "40°45′36″ N"],
+            ["LON", "111°53′28″ W"],
+            ["ELEV", "4,226 FT"],
+            ["MST", time],
+          ].map(([k, v]) => (
+            <div key={k} style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <span className="mono" style={{ color: "rgba(59,130,246,0.55)", minWidth: 36 }}>{k}</span>
+              <span className="mono" style={{ color: "rgba(255,255,255,0.38)" }}>{v}</span>
             </div>
           ))}
         </div>
 
-        <p style={{ marginTop: "1.5rem", fontSize: "0.78rem", color: "rgba(239,246,255,0.3)", textAlign: "center" }}>
-          Hosting something?{" "}
-          <a href="https://luma.com" target="_blank" rel="noopener noreferrer" style={{ color: "#60A5FA" }}>Add it to the calendar →</a>
-        </p>
-      </Section>
+        {/* Main hero type — bottom-anchored */}
+        <div style={{
+          position: "relative", zIndex: 10,
+          padding: "0 clamp(24px,4vw,60px) 60px",
+        }}>
+          {/* Small label */}
+          <div style={{
+            display: "flex", alignItems: "center", gap: 10,
+            marginBottom: "1rem",
+            animation: "reveal 0.9s ease 0.3s both",
+          }}>
+            <span style={{ width: 22, height: 1, background: "#3B82F6", display: "block" }} />
+            <span className="label" style={{ color: "#3B82F6" }}>Salt Lake City · Wasatch Front · Founded 2026</span>
+          </div>
 
-      {/* ── Divider ── */}
-      <div style={{ height: 1, background: "linear-gradient(to right, transparent, rgba(96,165,250,0.12), transparent)", margin: "0 clamp(20px,6vw,80px)" }} />
-
-      {/* ════════════════ TEAM ════════════════ */}
-      <Section id="team">
-        <div className="section-label">Organizers</div>
-        <h2 className="section-title" style={{ marginBottom: "0.5rem" }}>Our Team</h2>
-        <p className="section-sub" style={{ marginBottom: "3rem" }}>
-          We're not enthusiasts. We work in this every day — building, shipping, in the trenches.
-        </p>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "1.5rem" }}>
-          {TEAM.map((m) => (
-            <a
-              key={m.name}
-              href={m.xUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="glass glass-hover"
-              style={{ padding: "2rem", textDecoration: "none", display: "block" }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.25rem" }}>
-                <div>
-                  <div style={{ fontSize: "1.1rem", fontWeight: 700, color: "#EFF6FF", marginBottom: "0.2rem" }}>{m.name}</div>
-                  <div style={{ fontSize: "0.72rem", color: "#60A5FA", letterSpacing: "0.05em" }}>{m.handle}</div>
-                </div>
-                <span style={{ fontSize: "0.52rem", letterSpacing: "0.18em", textTransform: "uppercase", color: m.tag === "Open" ? "rgba(239,246,255,0.3)" : "#60A5FA", border: `1px solid ${m.tag === "Open" ? "rgba(239,246,255,0.12)" : "rgba(96,165,250,0.3)"}`, padding: "3px 8px" }}>{m.tag}</span>
-              </div>
-              <div style={{ fontSize: "0.8rem", color: "rgba(239,246,255,0.35)", marginBottom: "0.3rem" }}>{m.role}</div>
-              {m.co && (
-                <div style={{ fontSize: "0.78rem", color: "rgba(239,246,255,0.25)", marginBottom: "1rem" }}>@ {m.co}</div>
-              )}
-              <p style={{ fontSize: "0.82rem", color: "rgba(239,246,255,0.5)", lineHeight: 1.65 }}>{m.bio}</p>
-            </a>
-          ))}
-        </div>
-      </Section>
-
-      {/* ── Divider ── */}
-      <div style={{ height: 1, background: "linear-gradient(to right, transparent, rgba(96,165,250,0.12), transparent)", margin: "0 clamp(20px,6vw,80px)" }} />
-
-      {/* ════════════════ BUILDERS ════════════════ */}
-      <Section id="builders">
-        <div className="section-label">SLC Builders</div>
-        <h2 className="section-title" style={{ marginBottom: "0.5rem" }}>
-          Built in the<br />
-          <span className="text-gradient-blue">Wasatch</span>
-        </h2>
-        <p className="section-sub" style={{ marginBottom: "3.5rem" }}>
-          SLC is home to some of the most consequential crypto and AI infrastructure companies on earth.
-          This is our community.
-        </p>
-
-        {BUILDERS.map((row, ri) => (
-          <div
-            key={ri}
+          {/* MEGA headline */}
+          <h1
+            className="display"
             style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
-              gap: "1px",
-              background: "rgba(96,165,250,0.07)",
-              marginBottom: "1px",
+              fontSize: "clamp(5rem, 17vw, 18rem)",
+              color: "#FFFFFF",
+              animation: "reveal 0.9s ease 0.5s both",
+              lineHeight: 0.88,
+              maxWidth: "90vw",
             }}
           >
-            {row.map((b) => (
-              <a
-                key={b.name}
-                href={b.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  padding: "1.4rem 1.2rem",
-                  background: "rgba(5,27,63,0.35)",
-                  color: "rgba(239,246,255,0.55)",
-                  fontSize: "0.78rem",
-                  fontWeight: 500,
-                  letterSpacing: "0.04em",
-                  textDecoration: "none",
-                  textAlign: "center",
-                  transition: "background 0.2s, color 0.2s",
-                  backdropFilter: "blur(8px)",
-                }}
-                onMouseEnter={e => {
-                  const el = e.currentTarget;
-                  el.style.background = "rgba(29,78,216,0.2)";
-                  el.style.color = "#BAE6FD";
-                }}
-                onMouseLeave={e => {
-                  const el = e.currentTarget;
-                  el.style.background = "rgba(5,27,63,0.35)";
-                  el.style.color = "rgba(239,246,255,0.55)";
-                }}
-              >
-                {b.name}
-              </a>
-            ))}
+            Open<br />
+            <span style={{ color: "#3B82F6", WebkitTextStroke: "0px" }}>Claw</span>
+            <span style={{ color: "rgba(255,255,255,0.12)", WebkitTextStroke: "1px rgba(59,130,246,0.4)" }}> SLC</span>
+          </h1>
+
+          {/* Sub row */}
+          <div style={{
+            display: "flex", justifyContent: "space-between", alignItems: "flex-end",
+            marginTop: "2rem", flexWrap: "wrap", gap: "1.5rem",
+            animation: "reveal 0.9s ease 0.8s both",
+          }}>
+            <p style={{
+              fontSize: "clamp(0.9rem,1.8vw,1.15rem)",
+              color: "rgba(255,255,255,0.48)",
+              maxWidth: 440, lineHeight: 1.6,
+            }}>
+              The community for AI agent builders, crypto founders,
+              and the people shipping the next wave. Wasatch Front.
+            </p>
+            <div style={{ display: "flex", gap: 10 }}>
+              <a href="#events" style={{
+                padding: "13px 28px", background: "#1D4ED8", color: "#fff",
+                fontSize: "0.68rem", letterSpacing: "0.18em", textTransform: "uppercase",
+                fontWeight: 700, textDecoration: "none",
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background="#2563EB")}
+              onMouseLeave={e => (e.currentTarget.style.background="#1D4ED8")}
+              >Events →</a>
+              <a href="#join" style={{
+                padding: "13px 28px", background: "transparent", color: "#93C5FD",
+                fontSize: "0.68rem", letterSpacing: "0.18em", textTransform: "uppercase",
+                fontWeight: 600, textDecoration: "none",
+                border: "1px solid rgba(59,130,246,0.3)",
+              }}
+              onMouseEnter={e => (e.currentTarget.style.borderColor="rgba(96,165,250,0.6)")}
+              onMouseLeave={e => (e.currentTarget.style.borderColor="rgba(59,130,246,0.3)")}
+              >Join Community</a>
+            </div>
+          </div>
+        </div>
+
+        {/* Scroll hint */}
+        <div style={{
+          position: "absolute", bottom: 24, left: "50%", transform: "translateX(-50%)",
+          zIndex: 10, display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
+          opacity: 0.3,
+        }}>
+          <span className="label" style={{ fontSize: "0.48rem" }}>Scroll</span>
+          <div style={{ width: 1, height: 32, background: "rgba(59,130,246,0.8)" }} />
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════
+          STATS STRIP
+      ══════════════════════════════════════════ */}
+      <div style={{
+        borderTop: "1px solid rgba(255,255,255,0.07)",
+        borderBottom: "1px solid rgba(255,255,255,0.07)",
+        display: "grid",
+        gridTemplateColumns: "repeat(4, 1fr)",
+      }}>
+        {[
+          { n: <Counter to={40} suffix="+" />,  l: "Companies" },
+          { n: <Counter to={500} suffix="+" />, l: "Builders" },
+          { n: <Counter to={12} />,             l: "Monthly Events" },
+          { n: <Counter to={2026} />,           l: "Founded" },
+        ].map(({ n, l }, i) => (
+          <div key={i} style={{
+            padding: "2.5rem clamp(16px,3vw,40px)",
+            borderRight: i < 3 ? "1px solid rgba(255,255,255,0.07)" : "none",
+          }}>
+            <div className="display" style={{ fontSize: "clamp(2.5rem,5vw,4.5rem)", color: "#fff", marginBottom: "0.3rem" }}>{n}</div>
+            <div className="label" style={{ color: "rgba(255,255,255,0.3)" }}>{l}</div>
           </div>
         ))}
+      </div>
 
-        <p style={{ marginTop: "1.5rem", fontSize: "0.75rem", color: "rgba(239,246,255,0.2)", textAlign: "center" }}>
-          Building something in SLC?{" "}
-          <a href="#join" style={{ color: "#60A5FA" }}>Get listed →</a>
-        </p>
-      </Section>
-
-      {/* ── Divider ── */}
-      <div style={{ height: 1, background: "linear-gradient(to right, transparent, rgba(96,165,250,0.12), transparent)", margin: "0 clamp(20px,6vw,80px)" }} />
-
-      {/* ════════════════ COMMUNITY ════════════════ */}
-      <Section id="community">
-        <div className="section-label">Community</div>
-        <h2 className="section-title" style={{ marginBottom: "0.5rem" }}>
-          Utah's crypto<br />
-          <span className="text-gradient-blue">ecosystem</span>
-        </h2>
-        <p className="section-sub" style={{ marginBottom: "3rem" }}>
-          All of Utah's crypto and blockchain communities in one place. Whatever your level, there's a home for you here.
-        </p>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "1.5rem" }}>
-          {COMMUNITIES.map((c) => (
-            <a
-              key={c.name}
-              href={c.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="glass glass-hover"
-              style={{ padding: "1.75rem", textDecoration: "none", display: "block" }}
-            >
-              <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "#EFF6FF", marginBottom: "0.75rem" }}>{c.name}</h3>
-              <p style={{ fontSize: "0.82rem", color: "rgba(239,246,255,0.5)", lineHeight: 1.65, marginBottom: "1.25rem" }}>{c.desc}</p>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {c.tags.map(t => (
-                  <span key={t} style={{ fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(96,165,250,0.7)", border: "1px solid rgba(96,165,250,0.18)", padding: "2px 8px" }}>{t}</span>
-                ))}
-              </div>
-            </a>
-          ))}
-        </div>
-      </Section>
-
-      {/* ════════════════ JOIN CTA ════════════════ */}
-      <div id="join" style={{ padding: "140px clamp(20px,6vw,80px)", position: "relative", overflow: "hidden" }}>
-        {/* BG glow */}
-        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 70% 60% at 50% 50%, rgba(29,78,216,0.12) 0%, transparent 70%)", pointerEvents: "none" }} />
-
-        <div style={{ maxWidth: 720, margin: "0 auto", textAlign: "center", position: "relative" }}>
-          <div className="section-label">Join Us</div>
-          <h2 style={{ fontSize: "clamp(2.5rem,6vw,5rem)", fontWeight: 900, letterSpacing: "-0.04em", lineHeight: 1, color: "#EFF6FF", marginBottom: "1.25rem" }}>
-            Get in the room<br />
-            <span className="text-gradient-blue">before everyone else does.</span>
-          </h2>
-          <p style={{ fontSize: "1.05rem", color: "rgba(239,246,255,0.5)", lineHeight: 1.7, marginBottom: "2.5rem", maxWidth: 520, margin: "0 auto 2.5rem" }}>
-            Monthly meetups, builders roundtables, and the SLC network for people working at the frontier. No noise, no hype — just the people actually building.
-          </p>
-          <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-            <a
-              href="https://t.me/openclawslc"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ padding: "15px 36px", background: "#1D4ED8", color: "#EFF6FF", fontSize: "0.72rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 700, textDecoration: "none", border: "1px solid rgba(96,165,250,0.3)", transition: "background 0.2s" }}
-              onMouseEnter={e => (e.currentTarget.style.background = "#2563EB")}
-              onMouseLeave={e => (e.currentTarget.style.background = "#1D4ED8")}
-            >
-              Join Telegram →
-            </a>
-            <a
-              href="https://x.com/openclawslc"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="glass"
-              style={{ padding: "15px 36px", color: "#BAE6FD", fontSize: "0.72rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 600, textDecoration: "none", border: "1px solid rgba(96,165,250,0.25)", transition: "border-color 0.2s" }}
-              onMouseEnter={e => (e.currentTarget.style.borderColor = "rgba(96,165,250,0.5)")}
-              onMouseLeave={e => (e.currentTarget.style.borderColor = "rgba(96,165,250,0.25)")}
-            >
-              Follow on X
+      {/* ══════════════════════════════════════════
+          EVENTS — editorial list
+      ══════════════════════════════════════════ */}
+      <section id="events" style={{ padding: "120px clamp(24px,6vw,80px)" }}>
+        <div style={{ display: "flex", gap: "4vw", alignItems: "flex-start", marginBottom: "4rem", flexWrap: "wrap" }}>
+          <div style={{ flex: "0 0 auto" }}>
+            <span className="label" style={{ color: "#3B82F6" }}>↓ Events</span>
+          </div>
+          <div style={{ flex: 1, minWidth: 260 }}>
+            <h2 className="display" style={{
+              fontSize: "clamp(3rem,7vw,7rem)",
+              color: "#fff", lineHeight: 0.92, marginBottom: "1rem",
+            }}>
+              What's<br />happening
+            </h2>
+            <p style={{ fontSize: "0.9rem", color: "rgba(255,255,255,0.38)", maxWidth: 380, lineHeight: 1.7 }}>
+              Monthly meetups, panels, and roundtables for the SLC crypto and AI community.
+              Everything ends up on Luma.
+            </p>
+          </div>
+          <div>
+            <a href="https://lu.ma/openclawslc" target="_blank" rel="noopener noreferrer"
+              style={{ fontSize: "0.62rem", letterSpacing: "0.18em", textTransform: "uppercase", color: "#3B82F6", textDecoration: "none", borderBottom: "1px solid rgba(59,130,246,0.3)", paddingBottom: 3 }}>
+              Subscribe on Luma →
             </a>
           </div>
         </div>
-      </div>
 
-      {/* ════════════════ FOOTER ════════════════ */}
-      <footer style={{ borderTop: "1px solid rgba(96,165,250,0.08)", padding: "40px clamp(20px,6vw,80px)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <svg width="18" height="18" viewBox="0 0 28 28" fill="none">
-            <path d="M2,22 L8,10 L12,16 L16,8 L22,18 L26,22 Z" fill="none" stroke="rgba(96,165,250,0.5)" strokeWidth="1.4" strokeLinejoin="round"/>
-            <path d="M10,22 Q12,16 14,22" fill="none" stroke="#60A5FA" strokeWidth="1.8" strokeLinecap="round"/>
-            <path d="M13,22 Q15,15 17,22" fill="none" stroke="#93C5FD" strokeWidth="1.8" strokeLinecap="round"/>
-            <path d="M16,22 Q18,17 20,22" fill="none" stroke="#BAE6FD" strokeWidth="1.4" strokeLinecap="round"/>
-          </svg>
-          <span style={{ fontSize: "0.72rem", letterSpacing: "0.15em", textTransform: "uppercase", color: "rgba(239,246,255,0.4)" }}>
-            OpenClaw <span style={{ color: "#60A5FA" }}>SLC</span>
-          </span>
-        </div>
-        <div style={{ display: "flex", gap: "2rem" }}>
-          {[
-            { label: "X", href: "https://x.com/openclawslc" },
-            { label: "Telegram", href: "https://t.me/openclawslc" },
-            { label: "Events", href: "#events" },
-          ].map(l => (
-            <a key={l.label} href={l.href} target="_blank" rel="noopener noreferrer"
-              style={{ fontSize: "0.62rem", letterSpacing: "0.15em", textTransform: "uppercase", color: "rgba(239,246,255,0.3)", textDecoration: "none", transition: "color 0.2s" }}
-              onMouseEnter={e => (e.currentTarget.style.color = "#60A5FA")}
-              onMouseLeave={e => (e.currentTarget.style.color = "rgba(239,246,255,0.3)")}
+        <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+          {EVENTS.map(ev => (
+            <div key={ev.n} style={{
+              display: "grid",
+              gridTemplateColumns: "48px 1fr auto",
+              gap: "clamp(16px,3vw,40px)",
+              alignItems: "center",
+              padding: "2rem 0",
+              borderBottom: "1px solid rgba(255,255,255,0.06)",
+              cursor: "pointer",
+              transition: "opacity 0.2s",
+            }}
+            onMouseEnter={e => (e.currentTarget.style.opacity="0.75")}
+            onMouseLeave={e => (e.currentTarget.style.opacity="1")}
             >
-              {l.label}
+              <span className="mono" style={{ color: "rgba(59,130,246,0.45)" }}>{ev.n}</span>
+              <div>
+                <div style={{ fontSize: "clamp(1.1rem,2.5vw,1.6rem)", fontWeight: 700, color: "#fff", marginBottom: "0.3rem", letterSpacing: "-0.02em" }}>{ev.title}</div>
+                <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+                  <span style={{
+                    fontSize: "0.55rem", letterSpacing: "0.18em", textTransform: "uppercase",
+                    color: "#3B82F6", border: "1px solid rgba(59,130,246,0.3)", padding: "2px 8px",
+                  }}>{ev.type}</span>
+                  <span className="mono" style={{ color: "rgba(255,255,255,0.28)" }}>{ev.loc}</span>
+                </div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div className="display" style={{ fontSize: "clamp(1.5rem,3vw,2.5rem)", color: "rgba(255,255,255,0.25)", lineHeight: 1 }}>{ev.date}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════
+          BUILDERS — running type
+      ══════════════════════════════════════════ */}
+      <section id="builders" style={{
+        borderTop: "1px solid rgba(255,255,255,0.07)",
+        padding: "120px clamp(24px,6vw,80px)",
+      }}>
+        <div style={{ marginBottom: "4rem", display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: "2rem" }}>
+          <div>
+            <span className="label" style={{ color: "#3B82F6", display: "block", marginBottom: "1rem" }}>↓ Builders</span>
+            <h2 className="display" style={{ fontSize: "clamp(3rem,7vw,7rem)", color: "#fff", lineHeight: 0.92 }}>
+              Built<br />here.
+            </h2>
+          </div>
+          <p style={{ fontSize: "0.88rem", color: "rgba(255,255,255,0.35)", maxWidth: 360, lineHeight: 1.7 }}>
+            SLC is home to some of the most consequential crypto and AI infrastructure companies on earth.
+          </p>
+        </div>
+
+        {/* Flowing company names — large type grid */}
+        <div style={{
+          display: "flex", flexWrap: "wrap", gap: "0",
+          borderTop: "1px solid rgba(255,255,255,0.06)",
+        }}>
+          {BUILDERS.map((name, i) => (
+            <span key={i} style={{
+              padding: "0.9rem 0",
+              marginRight: "clamp(24px,4vw,56px)",
+              fontSize: "clamp(0.95rem,1.8vw,1.2rem)",
+              fontWeight: 500,
+              color: i % 7 === 0 ? "#60A5FA" : "rgba(255,255,255,0.45)",
+              letterSpacing: "-0.01em",
+              transition: "color 0.2s",
+              cursor: "default",
+              borderBottom: "1px solid rgba(255,255,255,0.04)",
+              width: "calc(25% - clamp(18px,3vw,42px))",
+            }}
+            onMouseEnter={e => (e.currentTarget.style.color="#fff")}
+            onMouseLeave={e => (e.currentTarget.style.color = i % 7 === 0 ? "#60A5FA" : "rgba(255,255,255,0.45)")}
+            >{name}</span>
+          ))}
+        </div>
+
+        <p style={{ marginTop: "2.5rem", fontSize: "0.72rem", color: "rgba(255,255,255,0.2)" }}>
+          Building in SLC? <a href="#join" style={{ color: "#3B82F6", textDecoration: "none", borderBottom: "1px solid rgba(59,130,246,0.3)" }}>Get listed →</a>
+        </p>
+      </section>
+
+      {/* ══════════════════════════════════════════
+          TEAM
+      ══════════════════════════════════════════ */}
+      <section id="team" style={{
+        borderTop: "1px solid rgba(255,255,255,0.07)",
+        padding: "120px clamp(24px,6vw,80px)",
+      }}>
+        <span className="label" style={{ color: "#3B82F6", display: "block", marginBottom: "3rem" }}>↓ Organizers</span>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: "1px", background: "rgba(255,255,255,0.07)" }}>
+          {[
+            {
+              name: "Grant Stellmacher",
+              handle: "@grantstell",
+              role: "Finance Architect · Anchorage Digital",
+              bio: "CPA, Finance Architect at Anchorage Digital. Building Clawford — the credentialed marketplace for agent labor.",
+              url: "https://x.com/grantstell",
+            },
+            {
+              name: "You?",
+              handle: "—",
+              role: "Co-Organizer · Open",
+              bio: "Interested in co-organizing OpenClaw SLC? We're looking for builders who live in the work.",
+              url: "#join",
+            },
+          ].map((m) => (
+            <a key={m.name} href={m.url} target={m.url.startsWith("http") ? "_blank" : "_self"} rel="noopener noreferrer"
+              style={{
+                display: "block", padding: "3rem", background: "#04080F",
+                textDecoration: "none",
+                transition: "background 0.2s",
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background="#060d1a")}
+              onMouseLeave={e => (e.currentTarget.style.background="#04080F")}
+            >
+              <div className="display" style={{ fontSize: "clamp(2rem,4vw,3.5rem)", color: "#fff", marginBottom: "0.5rem" }}>{m.name}</div>
+              <div className="mono" style={{ color: "#3B82F6", marginBottom: "0.25rem" }}>{m.handle}</div>
+              <div style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.3)", marginBottom: "1.5rem" }}>{m.role}</div>
+              <p style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.45)", lineHeight: 1.7, maxWidth: 380 }}>{m.bio}</p>
             </a>
           ))}
         </div>
-        <p style={{ fontSize: "0.62rem", color: "rgba(239,246,255,0.2)" }}>
-          Salt Lake City, Utah
-        </p>
+      </section>
+
+      {/* ══════════════════════════════════════════
+          COMMUNITY
+      ══════════════════════════════════════════ */}
+      <section id="community" style={{
+        borderTop: "1px solid rgba(255,255,255,0.07)",
+        padding: "120px clamp(24px,6vw,80px)",
+      }}>
+        <div style={{ display: "flex", gap: "4vw", alignItems: "flex-start", marginBottom: "4rem", flexWrap: "wrap" }}>
+          <div style={{ flex: "0 0 auto", paddingTop: "0.5rem" }}>
+            <span className="label" style={{ color: "#3B82F6" }}>↓ Community</span>
+          </div>
+          <h2 className="display" style={{ fontSize: "clamp(2.5rem,5vw,5.5rem)", color: "#fff", lineHeight: 0.92 }}>
+            Utah's<br />ecosystem.
+          </h2>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 0, borderTop: "1px solid rgba(255,255,255,0.07)", borderLeft: "1px solid rgba(255,255,255,0.07)" }}>
+          {COMMUNITIES.map((c, i) => (
+            <a key={i} href={c.url} target="_blank" rel="noopener noreferrer"
+              style={{
+                display: "block", padding: "2.5rem",
+                borderRight: "1px solid rgba(255,255,255,0.07)",
+                borderBottom: "1px solid rgba(255,255,255,0.07)",
+                textDecoration: "none",
+                transition: "background 0.2s",
+                background: "transparent",
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background="rgba(59,130,246,0.04)")}
+              onMouseLeave={e => (e.currentTarget.style.background="transparent")}
+            >
+              <div style={{ fontSize: "1rem", fontWeight: 700, color: "#fff", marginBottom: "0.75rem", letterSpacing: "-0.01em" }}>{c.name}</div>
+              <p style={{ fontSize: "0.82rem", color: "rgba(255,255,255,0.38)", lineHeight: 1.7 }}>{c.desc}</p>
+              <div style={{ marginTop: "1.25rem", fontSize: "0.62rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "#3B82F6" }}>Visit →</div>
+            </a>
+          ))}
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════
+          JOIN CTA — full-width, typographic
+      ══════════════════════════════════════════ */}
+      <section id="join" style={{
+        borderTop: "1px solid rgba(255,255,255,0.07)",
+        padding: "120px clamp(24px,6vw,80px) 160px",
+        position: "relative", overflow: "hidden",
+      }}>
+        {/* Background glow */}
+        <div style={{
+          position: "absolute", top: "50%", left: "50%",
+          transform: "translate(-50%,-50%)",
+          width: "60vw", height: "60vh",
+          background: "radial-gradient(ellipse, rgba(29,78,216,0.10) 0%, transparent 70%)",
+          pointerEvents: "none",
+        }} />
+
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <span className="label" style={{ color: "#3B82F6", display: "block", marginBottom: "2rem" }}>↓ Join</span>
+          <h2 className="display" style={{
+            fontSize: "clamp(4rem,14vw,14rem)",
+            color: "#fff",
+            lineHeight: 0.90,
+            marginBottom: "3rem",
+          }}>
+            Get in<br />
+            <span style={{ color: "#3B82F6" }}>the room.</span>
+          </h2>
+          <p style={{
+            fontSize: "clamp(0.9rem,1.8vw,1.1rem)",
+            color: "rgba(255,255,255,0.42)",
+            maxWidth: 460, lineHeight: 1.7,
+            marginBottom: "3rem",
+          }}>
+            Monthly meetups, builders roundtables, and the SLC network for people actually building.
+            No hype. No noise. Just the work.
+          </p>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <a href="https://t.me/openclawslc" target="_blank" rel="noopener noreferrer"
+              style={{
+                padding: "16px 36px", background: "#1D4ED8", color: "#fff",
+                fontSize: "0.68rem", letterSpacing: "0.18em", textTransform: "uppercase",
+                fontWeight: 700, textDecoration: "none", transition: "background 0.2s",
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background="#2563EB")}
+              onMouseLeave={e => (e.currentTarget.style.background="#1D4ED8")}
+            >Join on Telegram →</a>
+            <a href="https://x.com/openclawslc" target="_blank" rel="noopener noreferrer"
+              style={{
+                padding: "16px 36px", background: "transparent", color: "#93C5FD",
+                fontSize: "0.68rem", letterSpacing: "0.18em", textTransform: "uppercase",
+                fontWeight: 600, textDecoration: "none",
+                border: "1px solid rgba(59,130,246,0.3)", transition: "border-color 0.2s",
+              }}
+              onMouseEnter={e => (e.currentTarget.style.borderColor="rgba(96,165,250,0.6)")}
+              onMouseLeave={e => (e.currentTarget.style.borderColor="rgba(59,130,246,0.3)")}
+            >Follow on X</a>
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════
+          FOOTER
+      ══════════════════════════════════════════ */}
+      <footer style={{
+        borderTop: "1px solid rgba(255,255,255,0.07)",
+        padding: "32px clamp(24px,4vw,60px)",
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        flexWrap: "wrap", gap: "1rem",
+      }}>
+        <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "0.9rem", letterSpacing: "0.18em", color: "rgba(255,255,255,0.25)" }}>
+          OPENCLAW <span style={{ color: "#1D4ED8" }}>SLC</span>
+        </span>
+        <div style={{ display: "flex", gap: "2rem" }}>
+          {[
+            { l: "X",        h: "https://x.com/openclawslc" },
+            { l: "Telegram", h: "https://t.me/openclawslc" },
+            { l: "Events",   h: "#events" },
+          ].map(({ l, h }) => (
+            <a key={l} href={h} target="_blank" rel="noopener noreferrer" className="link-ul"
+              style={{ fontSize: "0.6rem", letterSpacing: "0.18em", textTransform: "uppercase" }}>
+              {l}
+            </a>
+          ))}
+        </div>
+        <span className="mono" style={{ color: "rgba(255,255,255,0.15)" }}>
+          40°45′N · 111°53′W
+        </span>
       </footer>
     </main>
   );
