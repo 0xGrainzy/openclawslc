@@ -7,15 +7,14 @@ import * as THREE from "three";
   CENTRAL WASATCH — Full 3D Range + SLC Valley Grid
   ═══════════════════════════════════════════════════════════════
 
-  Design: The entire mountain range is visible as a proportional
-  3D wireframe object. Below the western face, a flat street grid
-  represents the Salt Lake Valley. Camera orbits on scroll,
-  always showing the complete range — no clipping.
-
-  Horizontal contour lines only. City grid = separate geometry.
+  Range stretched N–S so individual peaks are clearly separated.
+  Vertical "skirt" lines drop from the mountain base to the grid
+  plane, creating a solid front face. Grid extends from base outward.
+  Camera pulled back to show full range + city.
 */
 
 const MAX_H = 32;
+const Z_STRETCH = 1.8; // stretch N–S to separate peaks
 
 /* ─── Noise ──────────────────────────────────────────────────── */
 function hash2d(ix: number, iz: number): number {
@@ -46,82 +45,64 @@ function sstep(e0: number, e1: number, x: number): number {
   return t * t * (3 - 2 * t);
 }
 
-/* ─── Canyon cuts (E–W canyons through the range) ────────────── */
+/* ─── Canyon cuts ────────────────────────────────────────────── */
 const CANYONS = [
-  { z: +14, depth: 0.22, width: 1.8, x0: -4, x1: 18 },  // Parley's
-  { z: +9,  depth: 0.20, width: 1.5, x0: -2, x1: 16 },  // Millcreek
-  { z: +3,  depth: 0.30, width: 2.4, x0: -6, x1: 20 },  // Big Cottonwood
-  { z: -5,  depth: 0.30, width: 2.4, x0: -6, x1: 22 },  // Little Cottonwood
-  { z: -12, depth: 0.18, width: 1.8, x0: -2, x1: 18 },  // Bells
-  { z: -18, depth: 0.16, width: 1.6, x0:  0, x1: 16 },  // Dry Creek
+  { z: +14, depth: 0.24, width: 2.0, x0: -4, x1: 18 },
+  { z: +9,  depth: 0.22, width: 1.8, x0: -2, x1: 16 },
+  { z: +3,  depth: 0.32, width: 2.6, x0: -6, x1: 20 },
+  { z: -5,  depth: 0.32, width: 2.6, x0: -6, x1: 22 },
+  { z: -12, depth: 0.20, width: 2.0, x0: -2, x1: 18 },
+  { z: -18, depth: 0.18, width: 1.8, x0:  0, x1: 16 },
 ];
 
-/* ─── Peak bumps — positioned on the actual terrain ──────────── */
+/* ─── Peak bumps ─────────────────────────────────────────────── */
 const BUMPS = [
-  { x:  6, z:+18, h:0.05, r:3.0 },  // Grandeur Peak (9,299')
-  { x:  8, z:+11, h:0.06, r:2.8 },  // Mt Aire
-  { x: 10, z: +6, h:0.12, r:3.0 },  // Mt Olympus (9,026')
-  { x: 14, z: +6, h:0.14, r:2.5 },  // Gobblers Knob (10,246')
-  { x: 15, z: +5, h:0.15, r:2.5 },  // Mt Raymond (10,241')
-  { x: 16, z: +1, h:0.16, r:2.5 },  // Kessler Peak (10,403')
-  { x: 18, z: -2, h:0.22, r:2.8 },  // Mt Superior (11,032')
-  { x: 20, z: -3, h:0.28, r:3.0 },  // Broads Fork Twins (11,330')
-  { x: 21, z: -6, h:0.20, r:2.5 },  // Hidden Peak / Snowbird (10,992')
-  { x: 22, z: -8, h:0.26, r:2.8 },  // Pfeifferhorn (11,325')
-  { x: 21, z:-10, h:0.23, r:2.5 },  // White Baldy (11,321')
-  { x: 20, z:-14, h:0.21, r:3.0 },  // Lone Peak (11,253')
-  { x: 18, z:-22, h:0.10, r:3.5 },  // Box Elder Peak (11,101')
+  { x:  6, z:+20, h:0.06, r:3.5 },  // Grandeur
+  { x:  8, z:+13, h:0.07, r:3.0 },  // Mt Aire
+  { x: 10, z: +7, h:0.13, r:3.2 },  // Olympus
+  { x: 14, z: +6, h:0.15, r:2.8 },  // Gobblers Knob
+  { x: 15, z: +5, h:0.16, r:2.8 },  // Raymond
+  { x: 16, z: +1, h:0.17, r:2.8 },  // Kessler
+  { x: 18, z: -2, h:0.24, r:3.0 },  // Superior
+  { x: 20, z: -3, h:0.30, r:3.2 },  // Broads Fork Twins
+  { x: 21, z: -6, h:0.22, r:2.8 },  // Hidden Peak
+  { x: 22, z: -8, h:0.28, r:3.0 },  // Pfeifferhorn
+  { x: 21, z:-10, h:0.25, r:2.8 },  // White Baldy
+  { x: 20, z:-15, h:0.22, r:3.2 },  // Lone Peak
+  { x: 18, z:-24, h:0.12, r:4.0 },  // Box Elder
 ];
 
-/* ─── Terrain function ───────────────────────────────────────── */
-// Range runs roughly N–S (z axis), ridge crest ~x=16
-// West face (SLC side): steep drop. East: gentle backcountry.
+/* ─── Terrain ────────────────────────────────────────────────── */
 const RIDGE_X = 16;
 
 function terrainH(wx: number, wz: number): number {
-  // Asymmetric cross-section: steep west, gentle east
   const dx = wx - RIDGE_X;
-  const westHW = 18;   // half-width west (steep)
-  const eastHW = 30;   // half-width east (gentle)
+  const westHW = 18, eastHW = 30;
   const hw = dx < 0 ? westHW : eastHW;
   const xNorm = dx / hw;
-
-  // N–S extent — tapers at both ends
-  const rangeCz = -2;
-  const rangeHW = 28;
+  const rangeCz = -2, rangeHW = 30;
   const zNorm = (wz - rangeCz) / rangeHW;
-
-  // Base dome — elliptical, pow for sharper ridgeline
   const r2 = xNorm * xNorm + zNorm * zNorm;
   if (r2 >= 1) return 0;
   const dome = Math.pow(1 - r2, 1.3);
 
-  // Ridge crest emphasis — Gaussian along x=RIDGE_X
   const ridgeDx = (wx - RIDGE_X) / 6;
   const ridge = Math.exp(-ridgeDx * ridgeDx) * dome * 0.25;
 
-  // West face steepness boost
   const wbArg = (dx + 5) / 8;
   const westBoost = dx < 0 ? Math.exp(-(wbArg * wbArg)) * dome * 0.12 : 0;
 
-  // Canyon incisions
   let cut = 0;
   for (const c of CANYONS) {
     const dzC = (wz - c.z) / c.width;
-    const canyonProfile = Math.exp(-dzC * dzC);
-    // Canyons cut deeper toward the valley (west), shallow near crest
-    const xFade = sstep(c.x0, c.x0 + 6, wx) * (1 - sstep(c.x1 - 5, c.x1, wx));
-    cut += c.depth * canyonProfile * xFade;
+    cut += c.depth * Math.exp(-dzC * dzC) *
+      sstep(c.x0, c.x0 + 6, wx) * (1 - sstep(c.x1 - 5, c.x1, wx));
   }
 
-  // Fractal noise — only on elevated terrain
   const n = fbm(wx * 0.11 + 5.3, wz * 0.08 + 3.7, 6);
   const noise = n * dome * dome * 0.20;
-
-  // Fine detail noise
   const detail = fbm(wx * 0.28 + 11.1, wz * 0.22 + 7.9, 4) * dome * dome * 0.08;
 
-  // Named peak bumps
   let peaks = 0;
   for (const p of BUMPS) {
     const pdx = (wx - p.x) / p.r, pdz = (wz - p.z) / p.r;
@@ -129,45 +110,31 @@ function terrainH(wx: number, wz: number): number {
   }
 
   const raw = dome * 0.50 + ridge + westBoost + noise + detail + peaks - cut;
-
-  // Smooth edge fadeout (avoid hard edges)
   const edgeFade = Math.pow(Math.max(0, 1 - r2), 0.4);
-
   return Math.max(0, Math.min(1, raw)) * edgeFade;
 }
 
 /* ─── Color ──────────────────────────────────────────────────── */
 function altColor(t: number): [number, number, number] {
-  // Dark navy base → bright ice blue peaks
-  return [
-    0.02 + t * 0.45,
-    0.04 + t * 0.65,
-    0.18 + t * 0.82,
-  ];
+  return [0.02 + t * 0.45, 0.04 + t * 0.65, 0.18 + t * 0.82];
 }
 
 /* ─── Camera ─────────────────────────────────────────────────── */
-// Target = center of the range
-const TARGET = new THREE.Vector3(RIDGE_X - 4, MAX_H * 0.22, -2);
+const TARGET = new THREE.Vector3(RIDGE_X - 6, MAX_H * 0.18, -2 * Z_STRETCH);
 
-/*
-  Camera is PULLED BACK — full range visible at all times.
-  Hero: SSW angle looking at the SLC face with valley grid below.
-  Scroll orbits 360°.
-*/
 const KF_MOB = [
-  { theta: Math.PI + 0.20, phi: 0.38, r: 105 },  // SSW — hero, SLC face
-  { theta: Math.PI * 1.50, phi: 0.42, r: 115 },  // South
-  { theta: Math.PI * 2.00, phi: 0.48, r: 120 },  // East — backcountry
-  { theta: Math.PI * 2.50, phi: 0.42, r: 115 },  // North
-  { theta: Math.PI * 3.20, phi: 0.38, r: 105 },  // SSW return
+  { theta: Math.PI + 0.20, phi: 0.34, r: 130 },
+  { theta: Math.PI * 1.50, phi: 0.40, r: 145 },
+  { theta: Math.PI * 2.00, phi: 0.48, r: 155 },
+  { theta: Math.PI * 2.50, phi: 0.40, r: 145 },
+  { theta: Math.PI * 3.20, phi: 0.34, r: 130 },
 ];
 const KF_DESK = [
-  { theta: Math.PI + 0.20, phi: 0.32, r: 120 },  // SSW
-  { theta: Math.PI * 1.50, phi: 0.38, r: 140 },  // South
-  { theta: Math.PI * 2.00, phi: 0.44, r: 155 },  // East
-  { theta: Math.PI * 2.50, phi: 0.38, r: 140 },  // North
-  { theta: Math.PI * 3.20, phi: 0.32, r: 120 },  // SSW return
+  { theta: Math.PI + 0.20, phi: 0.30, r: 150 },
+  { theta: Math.PI * 1.50, phi: 0.36, r: 170 },
+  { theta: Math.PI * 2.00, phi: 0.42, r: 185 },
+  { theta: Math.PI * 2.50, phi: 0.36, r: 170 },
+  { theta: Math.PI * 3.20, phi: 0.30, r: 150 },
 ];
 
 function orbitPos(theta: number, phi: number, r: number): THREE.Vector3 {
@@ -204,8 +171,8 @@ export default function MountainGL({ onCameraUpdate }: Props) {
 
     const mobile = window.innerWidth < 768;
     const KFS = mobile ? KF_MOB : KF_DESK;
-    const FOV = mobile ? 65 : 48;
-    const FOG = mobile ? 0.0008 : 0.0010;
+    const FOV = mobile ? 62 : 46;
+    const FOG = mobile ? 0.0006 : 0.0008;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
@@ -214,14 +181,15 @@ export default function MountainGL({ onCameraUpdate }: Props) {
 
     const scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(0x000000, FOG);
-    const camera = new THREE.PerspectiveCamera(FOV, 1, 0.5, 600);
+    const camera = new THREE.PerspectiveCamera(FOV, 1, 0.5, 800);
 
-    /* ─── Mountain terrain mesh ─────────────────────────────── */
-    const COLS = mobile ? 160 : 260;
-    const ROWS = mobile ? 120 : 180;
-    const XMIN = -8, XMAX = 55;
-    const ZMIN = -34, ZMAX = 30;
+    /* ─── Mountain terrain ──────────────────────────────────── */
+    const COLS = mobile ? 180 : 300;
+    const ROWS = mobile ? 140 : 220;
+    const XMIN = -6, XMAX = 50;
+    const ZMIN = -32, ZMAX = 28;
 
+    // Pre-compute heights (in unstretched z space for terrain fn)
     const H: number[][] = Array.from({ length: ROWS }, (_, zi) =>
       Array.from({ length: COLS }, (_, xi) => {
         const wx = XMIN + (xi / (COLS - 1)) * (XMAX - XMIN);
@@ -238,19 +206,85 @@ export default function MountainGL({ onCameraUpdate }: Props) {
       colA.push(r0, g0, b0, r1, g1, b1);
     }
 
-    // Horizontal contour lines — the mountain
+    // Horizontal contour lines (z stretched for display)
     for (let zi = 0; zi < ROWS; zi++) {
       const wz = ZMIN + (zi / (ROWS - 1)) * (ZMAX - ZMIN);
+      const dz = wz * Z_STRETCH; // stretched display z
       for (let xi = 0; xi < COLS - 1; xi++) {
         const wx0 = XMIN + (xi / (COLS - 1)) * (XMAX - XMIN);
         const wx1 = XMIN + ((xi + 1) / (COLS - 1)) * (XMAX - XMIN);
         const h0 = H[zi][xi], h1 = H[zi][xi + 1];
-        // Only draw segments where terrain has some height
-        if (h0 > 0.08 || h1 > 0.08) {
-          seg(wx0, h0, wz, wx1, h1, wz);
+        if (h0 > 0.05 || h1 > 0.05) {
+          seg(wx0, h0, dz, wx1, h1, dz);
         }
       }
     }
+
+    /* ─── Skirt: vertical drop lines from mountain edge to y=0 ─ */
+    // For each row (z-slice), find the westernmost point with height > threshold
+    // and drop a vertical line from the terrain surface down to y=0
+    const skirtVerts: number[] = [], skirtCols: number[] = [];
+    const SKIRT_THRESH = 0.3;
+
+    for (let zi = 0; zi < ROWS; zi += (mobile ? 2 : 1)) {
+      const wz = ZMIN + (zi / (ROWS - 1)) * (ZMAX - ZMIN);
+      const dz = wz * Z_STRETCH;
+
+      // West edge skirt
+      for (let xi = 0; xi < COLS; xi++) {
+        if (H[zi][xi] > SKIRT_THRESH) {
+          const wx = XMIN + (xi / (COLS - 1)) * (XMAX - XMIN);
+          const h = H[zi][xi];
+          skirtVerts.push(wx, h, dz, wx, 0, dz);
+          const t = h / MAX_H;
+          skirtCols.push(
+            0.02 + t * 0.20, 0.04 + t * 0.30, 0.16 + t * 0.40,
+            0.01, 0.02, 0.08,
+          );
+          break; // only the western edge
+        }
+      }
+
+      // East edge skirt
+      for (let xi = COLS - 1; xi >= 0; xi--) {
+        if (H[zi][xi] > SKIRT_THRESH) {
+          const wx = XMIN + (xi / (COLS - 1)) * (XMAX - XMIN);
+          const h = H[zi][xi];
+          skirtVerts.push(wx, h, dz, wx, 0, dz);
+          const t = h / MAX_H;
+          skirtCols.push(
+            0.02 + t * 0.12, 0.03 + t * 0.18, 0.12 + t * 0.25,
+            0.01, 0.02, 0.06,
+          );
+          break;
+        }
+      }
+    }
+
+    // Also add skirt lines along the mountain base (connect base points at y=0)
+    // West edge base line
+    const westBase: Array<[number, number]> = [];
+    for (let zi = 0; zi < ROWS; zi++) {
+      const wz = ZMIN + (zi / (ROWS - 1)) * (ZMAX - ZMIN);
+      const dz = wz * Z_STRETCH;
+      for (let xi = 0; xi < COLS; xi++) {
+        if (H[zi][xi] > SKIRT_THRESH) {
+          const wx = XMIN + (xi / (COLS - 1)) * (XMAX - XMIN);
+          westBase.push([wx, dz]);
+          break;
+        }
+      }
+    }
+    for (let i = 0; i < westBase.length - 1; i++) {
+      skirtVerts.push(westBase[i][0], 0, westBase[i][1], westBase[i+1][0], 0, westBase[i+1][1]);
+      skirtCols.push(0.02, 0.04, 0.14, 0.02, 0.04, 0.14);
+    }
+
+    const skirtGeo = new THREE.BufferGeometry();
+    skirtGeo.setAttribute("position", new THREE.Float32BufferAttribute(skirtVerts, 3));
+    skirtGeo.setAttribute("color", new THREE.Float32BufferAttribute(skirtCols, 3));
+    const skirtMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.6 });
+    scene.add(new THREE.LineSegments(skirtGeo, skirtMat));
 
     const geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.Float32BufferAttribute(verts, 3));
@@ -258,41 +292,29 @@ export default function MountainGL({ onCameraUpdate }: Props) {
     const mat = new THREE.LineBasicMaterial({ vertexColors: true, opacity: 0.92, transparent: true });
     scene.add(new THREE.LineSegments(geo, mat));
 
-    /* ─── SLC Valley grid (flat plane, west of range) ────────── */
+    /* ─── SLC Valley grid ────────────────────────────────────── */
     const gridVerts: number[] = [], gridCols: number[] = [];
-    const GRID_Y = 0;
-    const GX0 = -55, GX1 = 0;   // west of the range base
-    const GZ0 = -30, GZ1 = 26;
-    const GRID_SPACING = 2.8;
-    const gridOp = 0.14;
+    const GX0 = -70, GX1 = 2;
+    const GZ0 = -52 * Z_STRETCH, GZ1 = 44 * Z_STRETCH;
+    const GRID_SP = 3.2;
+    const gOp = 0.12;
 
-    // N-S lines (streets)
-    for (let x = GX0; x <= GX1; x += GRID_SPACING) {
-      gridVerts.push(x, GRID_Y, GZ0, x, GRID_Y, GZ1);
-      gridCols.push(0.08 * gridOp, 0.15 * gridOp, 0.35 * gridOp,
-                     0.08 * gridOp, 0.15 * gridOp, 0.35 * gridOp);
+    // N-S streets
+    for (let x = GX0; x <= GX1; x += GRID_SP) {
+      gridVerts.push(x, 0, GZ0, x, 0, GZ1);
+      gridCols.push(0.06*gOp, 0.12*gOp, 0.35*gOp, 0.06*gOp, 0.12*gOp, 0.35*gOp);
     }
-    // E-W lines (avenues)
-    for (let z = GZ0; z <= GZ1; z += GRID_SPACING) {
-      gridVerts.push(GX0, GRID_Y, z, GX1, GRID_Y, z);
-      gridCols.push(0.08 * gridOp, 0.15 * gridOp, 0.35 * gridOp,
-                     0.08 * gridOp, 0.15 * gridOp, 0.35 * gridOp);
+    // E-W avenues
+    for (let z = GZ0; z <= GZ1; z += GRID_SP) {
+      gridVerts.push(GX0, 0, z, GX1, 0, z);
+      gridCols.push(0.06*gOp, 0.12*gOp, 0.35*gOp, 0.06*gOp, 0.12*gOp, 0.35*gOp);
     }
 
-    // A few brighter "main roads" — State St, 700 E, I-15 equivalent
-    const mainRoads = [-45, -30, -15, -5];
-    for (const x of mainRoads) {
-      gridVerts.push(x, GRID_Y + 0.02, GZ0, x, GRID_Y + 0.02, GZ1);
-      const br = 0.22;
-      gridCols.push(0.06 * br, 0.12 * br, 0.40 * br,
-                     0.06 * br, 0.12 * br, 0.40 * br);
-    }
-    const mainAves = [-20, -5, 10];
-    for (const z of mainAves) {
-      gridVerts.push(GX0, GRID_Y + 0.02, z, GX1, GRID_Y + 0.02, z);
-      const br = 0.22;
-      gridCols.push(0.06 * br, 0.12 * br, 0.40 * br,
-                     0.06 * br, 0.12 * br, 0.40 * br);
+    // Main roads brighter
+    for (const x of [-55, -38, -20, -5]) {
+      gridVerts.push(x, 0.02, GZ0, x, 0.02, GZ1);
+      const b = 0.20;
+      gridCols.push(0.06*b, 0.12*b, 0.45*b, 0.06*b, 0.12*b, 0.45*b);
     }
 
     const gridGeo = new THREE.BufferGeometry();
@@ -300,39 +322,6 @@ export default function MountainGL({ onCameraUpdate }: Props) {
     gridGeo.setAttribute("color", new THREE.Float32BufferAttribute(gridCols, 3));
     const gridMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 1 });
     scene.add(new THREE.LineSegments(gridGeo, gridMat));
-
-    /* ─── Foothills transition (low rolling terrain west of range) */
-    const fhVerts: number[] = [], fhCols: number[] = [];
-    const FH_COLS = mobile ? 60 : 100;
-    const FH_ROWS = mobile ? 50 : 80;
-    const FHX0 = -10, FHX1 = 8;
-    const FHZ0 = -28, FHZ1 = 24;
-
-    for (let zi = 0; zi < FH_ROWS; zi++) {
-      const wz = FHZ0 + (zi / (FH_ROWS - 1)) * (FHZ1 - FHZ0);
-      for (let xi = 0; xi < FH_COLS - 1; xi++) {
-        const wx0 = FHX0 + (xi / (FH_COLS - 1)) * (FHX1 - FHX0);
-        const wx1 = FHX0 + ((xi + 1) / (FH_COLS - 1)) * (FHX1 - FHX0);
-        // Low rolling foothills — just fractal noise, low amplitude
-        const fh0 = Math.max(0, fbm(wx0 * 0.15 + 2.1, wz * 0.12 + 1.3, 4) * 2.5 *
-          sstep(FHX0, FHX0 + 5, wx0) * (1 - sstep(FHX1 - 4, FHX1, wx0)) *
-          sstep(FHZ0, FHZ0 + 6, wz) * (1 - sstep(FHZ1 - 6, FHZ1, wz)));
-        const fh1 = Math.max(0, fbm(wx1 * 0.15 + 2.1, wz * 0.12 + 1.3, 4) * 2.5 *
-          sstep(FHX0, FHX0 + 5, wx1) * (1 - sstep(FHX1 - 4, FHX1, wx1)) *
-          sstep(FHZ0, FHZ0 + 6, wz) * (1 - sstep(FHZ1 - 6, FHZ1, wz)));
-        if (fh0 > 0.05 || fh1 > 0.05) {
-          fhVerts.push(wx0, fh0, wz, wx1, fh1, wz);
-          const t0 = fh0 / 3, t1 = fh1 / 3;
-          fhCols.push(0.02 + t0 * 0.15, 0.04 + t0 * 0.22, 0.14 + t0 * 0.30,
-                       0.02 + t1 * 0.15, 0.04 + t1 * 0.22, 0.14 + t1 * 0.30);
-        }
-      }
-    }
-    const fhGeo = new THREE.BufferGeometry();
-    fhGeo.setAttribute("position", new THREE.Float32BufferAttribute(fhVerts, 3));
-    fhGeo.setAttribute("color", new THREE.Float32BufferAttribute(fhCols, 3));
-    const fhMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.7 });
-    scene.add(new THREE.LineSegments(fhGeo, fhMat));
 
     /* ─── Interaction ────────────────────────────────────────── */
     const mouse = new THREE.Vector2();
@@ -378,8 +367,8 @@ export default function MountainGL({ onCameraUpdate }: Props) {
       window.removeEventListener("mousemove", onMouse);
       ro.disconnect();
       geo.dispose(); mat.dispose();
+      skirtGeo.dispose(); skirtMat.dispose();
       gridGeo.dispose(); gridMat.dispose();
-      fhGeo.dispose(); fhMat.dispose();
       renderer.dispose();
       if (el.contains(renderer.domElement)) el.removeChild(renderer.domElement);
     };
