@@ -28,7 +28,6 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [rotatedKey, setRotatedKey] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     title: "",
@@ -103,19 +102,6 @@ export default function AdminPage() {
     }
   };
 
-  const handleRotateKey = async () => {
-    if (!confirm("Rotate the access key? The old key will stop working immediately.")) return;
-    setRotatedKey(null);
-    try {
-      const res = await fetch("/api/admin/rotate-key", { method: "POST" });
-      if (!res.ok) throw new Error("Failed to rotate key");
-      const data = await res.json();
-      setRotatedKey(data.newKey);
-    } catch {
-      setError("Failed to rotate access key");
-    }
-  };
-
   useEffect(() => {
     if (success) {
       const t = setTimeout(() => setSuccess(""), 3000);
@@ -153,16 +139,6 @@ export default function AdminPage() {
           </div>
           <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
             <button
-              onClick={handleRotateKey}
-              style={{
-                padding: "6px 12px", background: "rgba(37,99,235,0.10)", color: "#93C5FD",
-                border: "1px solid rgba(37,99,235,0.25)", cursor: "pointer",
-                ...MONO, fontSize: "0.42rem", letterSpacing: "0.12em", textTransform: "uppercase",
-              }}
-            >
-              Rotate Key
-            </button>
-            <button
               onClick={() => signOut({ callbackUrl: "/admin/login" })}
               style={{
                 padding: "6px 12px", background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.45)",
@@ -177,28 +153,6 @@ export default function AdminPage() {
             </a>
           </div>
         </div>
-
-        {/* Rotated key display */}
-        {rotatedKey && (
-          <div style={{
-            padding: "14px 18px",
-            background: "rgba(37,99,235,0.12)",
-            border: "1px solid rgba(37,99,235,0.45)",
-            color: "#DBEAFE",
-            ...MONO,
-            fontSize: "0.52rem",
-            marginBottom: "1.5rem",
-            lineHeight: 1.8,
-          }}>
-            <div style={{ color: "#93C5FD", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: "0.5rem" }}>
-              ⚠ New Access Key — Copy Now
-            </div>
-            <div style={{ fontSize: "0.85rem", wordBreak: "break-all", color: "#fff" }}>{rotatedKey}</div>
-            <div style={{ color: "rgba(219,234,254,0.55)", marginTop: "0.5rem" }}>
-              This will not be shown again.
-            </div>
-          </div>
-        )}
 
         {/* Feedback banners */}
         {error && (

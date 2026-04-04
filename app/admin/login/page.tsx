@@ -16,8 +16,7 @@ function LoginForm() {
   const callbackUrl = searchParams.get("callbackUrl") ?? "/admin";
   const errorParam = searchParams.get("error");
 
-  const [accessKey, setAccessKey] = useState("");
-  const [showKeySection, setShowKeySection] = useState(false);
+  const [password, setPassword] = useState("");
   const [error, setError] = useState(
     errorParam === "AccessDenied"
       ? "Access denied. Only authorized users may sign in."
@@ -26,7 +25,7 @@ function LoginForm() {
       : ""
   );
   const [loading, setLoading] = useState(false);
-  const [keyLoading, setKeyLoading] = useState(false);
+  const [pwLoading, setPwLoading] = useState(false);
 
   async function handleGoogleSignIn() {
     setLoading(true);
@@ -34,23 +33,23 @@ function LoginForm() {
     await signIn("google", { callbackUrl });
   }
 
-  async function handleKeySubmit(e: React.FormEvent) {
+  async function handlePasswordSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setKeyLoading(true);
+    setPwLoading(true);
     setError("");
-    const result = await signIn("access-key", {
-      accessKey,
+    const result = await signIn("password", {
+      password,
       callbackUrl,
       redirect: false,
     });
-    setKeyLoading(false);
+    setPwLoading(false);
     if (result?.ok) {
       window.location.href = callbackUrl;
     } else {
       setError(
         result?.error === "Too many login attempts. Please wait a minute."
           ? result.error
-          : "Invalid access key."
+          : "Invalid password."
       );
     }
   }
@@ -105,7 +104,7 @@ function LoginForm() {
             alignItems: "center",
             justifyContent: "center",
             gap: "10px",
-            padding: "12px 20px",
+            padding: "14px 20px",
             background: "#FFFFFF",
             color: "#000000",
             border: "none",
@@ -125,7 +124,7 @@ function LoginForm() {
             <path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
             <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
           </svg>
-          {loading ? "Signing in…" : "Continue with Google"}
+          {loading ? "Signing in…" : "Sign in with Google"}
         </button>
 
         {/* Divider */}
@@ -140,84 +139,60 @@ function LoginForm() {
           <div style={{ flex: 1, height: "1px", background: "rgba(255,255,255,0.10)" }} />
         </div>
 
-        {/* Access Key Toggle */}
-        <button
-          onClick={() => setShowKeySection(!showKeySection)}
-          style={{
-            width: "100%",
-            background: "transparent",
-            border: "1px solid rgba(255,255,255,0.15)",
-            padding: "10px 14px",
-            color: "rgba(255,255,255,0.40)",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            ...MONO,
-            fontSize: "0.48rem",
-            letterSpacing: "0.14em",
-            textTransform: "uppercase",
-          }}
-        >
-          <span>Use access key</span>
-          <span>{showKeySection ? "▲" : "▼"}</span>
-        </button>
-
-        {showKeySection && (
-          <form onSubmit={handleKeySubmit} style={{ marginTop: "1rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
-            <div>
-              <label style={{
-                ...MONO,
-                fontSize: "0.42rem",
-                letterSpacing: "0.16em",
-                textTransform: "uppercase",
-                color: "rgba(255,255,255,0.40)",
-                display: "block",
-                marginBottom: "0.5rem",
-              }}>
-                Access Key
-              </label>
-              <input
-                type="password"
-                value={accessKey}
-                onChange={e => setAccessKey(e.target.value)}
-                autoComplete="current-password"
-                required
-                placeholder="Paste your access key"
-                style={{
-                  width: "100%",
-                  padding: "10px 14px",
-                  background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  color: "#fff",
-                  ...MONO,
-                  fontSize: "0.85rem",
-                  outline: "none",
-                  boxSizing: "border-box",
-                }}
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={keyLoading}
+        {/* Password Form */}
+        <form onSubmit={handlePasswordSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <div>
+            <label style={{
+              ...MONO,
+              fontSize: "0.42rem",
+              letterSpacing: "0.16em",
+              textTransform: "uppercase",
+              color: "rgba(255,255,255,0.40)",
+              display: "block",
+              marginBottom: "0.5rem",
+            }}>
+              Password
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              autoComplete="current-password"
+              required
+              placeholder="Enter password"
               style={{
-                padding: "12px 20px",
-                background: "#2563EB",
+                width: "100%",
+                padding: "10px 14px",
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.12)",
                 color: "#fff",
-                border: "none",
-                cursor: keyLoading ? "not-allowed" : "pointer",
-                opacity: keyLoading ? 0.7 : 1,
                 ...MONO,
-                fontSize: "0.60rem",
-                letterSpacing: "0.18em",
-                textTransform: "uppercase",
-                fontWeight: 700,
+                fontSize: "0.85rem",
+                outline: "none",
+                boxSizing: "border-box",
               }}
-            >
-              {keyLoading ? "Verifying…" : "LOGIN →"}
-            </button>
-          </form>
-        )}
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={pwLoading}
+            style={{
+              padding: "10px 20px",
+              background: "rgba(255,255,255,0.06)",
+              color: "rgba(255,255,255,0.6)",
+              border: "1px solid rgba(255,255,255,0.15)",
+              cursor: pwLoading ? "not-allowed" : "pointer",
+              opacity: pwLoading ? 0.7 : 1,
+              ...MONO,
+              fontSize: "0.55rem",
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              fontWeight: 600,
+            }}
+          >
+            {pwLoading ? "Signing in…" : "Sign in →"}
+          </button>
+        </form>
       </div>
     </div>
   );

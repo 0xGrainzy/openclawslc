@@ -2,10 +2,10 @@
 
 ## Overview
 
-The admin (`/admin`) routes are protected by a two-layer auth system:
+The admin (`/admin`) routes are protected by two auth methods:
 
 1. **Google OAuth** (primary) — sign in with `0xgrainzy@gmail.com`
-2. **Access Key** (fallback) — a rotating key stored bcrypt-hashed in `admin-key.json`
+2. **Password** (fallback) — env var `ADMIN_PASSWORD` (default: `SLCAdmin2026!`)
 
 ---
 
@@ -45,6 +45,9 @@ NEXTAUTH_SECRET=<generate with: openssl rand -hex 32>
 
 GOOGLE_CLIENT_ID=<your-client-id>.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=<your-client-secret>
+
+# Optional — fallback password (defaults to SLCAdmin2026! if not set)
+ADMIN_PASSWORD=<your-password>
 ```
 
 For **production on Vercel**, set the same variables in:
@@ -52,52 +55,21 @@ Vercel Dashboard → Project → Settings → Environment Variables
 
 ---
 
-## Step 3 — Access Key Initialization
-
-On first startup, the access key is auto-generated in `admin-key.json` (bcrypt-hashed).
-To get your initial plaintext key, rotate it from the Admin Panel after logging in with Google:
-
-1. Sign in with Google OAuth (once credentials are set up)
-2. In the Admin Panel header, click **Rotate Key**
-3. Copy the displayed key — it is shown **once only**
-
-Alternatively via API:
-```bash
-curl -X POST https://openclawslc.com/api/admin/rotate-key \
-  -H "Cookie: next-auth.session-token=<your-session-cookie>"
-```
-
----
-
-## Step 4 — Key Rotation
-
-Once authenticated, rotate the access key from the Admin Panel (Rotate Key button) or via:
-
-```
-POST /api/admin/rotate-key
-```
-
-The response JSON contains `newKey` — copy it immediately. Store it securely (password manager).
-
----
-
 ## File Reference
 
 | File | Purpose |
 |------|---------|
-| `admin-key.json` | Bcrypt hash of current access key + timestamps |
 | `.env.local` | Local environment variables (never commit) |
-| `lib/admin-key.ts` | Key generation/verification logic |
 | `lib/auth-options.ts` | NextAuth configuration |
 | `lib/rate-limit.ts` | Login rate limiter (5 req/min per IP) |
-| `middleware.ts` | Route protection (requires valid session) |
+| `proxy.ts` | Route protection middleware (requires valid session) |
 
 ---
 
 ## Security Notes
 
-- Access key is bcrypt-hashed (12 rounds) — plaintext is never stored
-- Rate limit: 5 login attempts per minute per IP
+- Rate limit: 5 password attempts per minute per IP
 - Sessions expire after 24 hours (JWT strategy)
 - Google OAuth restricted to `0xgrainzy@gmail.com` only
 - CSRF protection provided by NextAuth built-in
+- Password is compared in plaintext from env var — keep `ADMIN_PASSWORD` secret in production

@@ -8,9 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "@types/bcryptjs": "^2.4.6",
     "@types/three": "^0.183.1",
-    "bcryptjs": "^3.0.3",
     "framer-motion": "^12.34.3",
     "next": "16.1.6",
     "next-auth": "^4.24.13",

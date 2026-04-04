@@ -1,10 +1,10 @@
 import type { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { verifyAdminKey } from "./admin-key";
 import { rateLimit } from "./rate-limit";
 
 const ALLOWED_EMAIL = "0xgrainzy@gmail.com";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "SLCAdmin2026!";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -13,10 +13,10 @@ export const authOptions: NextAuthOptions = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
     }),
     CredentialsProvider({
-      id: "access-key",
-      name: "Access Key",
+      id: "password",
+      name: "Password",
       credentials: {
-        accessKey: { label: "Access Key", type: "password" },
+        password: { label: "Password", type: "password" },
       },
       async authorize(credentials, req) {
         // Rate limit by IP
@@ -31,11 +31,10 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Too many login attempts. Please wait a minute.");
         }
 
-        const key = credentials?.accessKey ?? "";
-        if (!key) return null;
+        const password = credentials?.password ?? "";
+        if (!password) return null;
 
-        const valid = await verifyAdminKey(key);
-        if (!valid) return null;
+        if (password !== ADMIN_PASSWORD) return null;
 
         return {
           id: "grant",
@@ -50,6 +49,7 @@ export const authOptions: NextAuthOptions = {
       if (account?.provider === "google") {
         return user.email === ALLOWED_EMAIL;
       }
+      // Password provider already validated above
       return true;
     },
     async session({ session, token }) {
