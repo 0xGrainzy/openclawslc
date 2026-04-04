@@ -1,5 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
+import { useSession, signOut } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 const MONO: React.CSSProperties = {
   fontFamily: "'JetBrains Mono','Fira Code','Courier New',monospace",
@@ -18,18 +20,15 @@ interface Event {
   createdAt: string;
 }
 
-function encodeBasic(password: string) {
-  return "Basic " + btoa("admin:" + password);
-}
-
 export default function AdminPage() {
-  const [password, setPassword] = useState("");
-  const [authed, setAuthed] = useState(false);
-  const [authError, setAuthError] = useState("");
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [rotatedKey, setRotatedKey] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     title: "",
@@ -39,12 +38,10 @@ export default function AdminPage() {
     lumaUrl: "",
   });
 
-  const fetchEvents = useCallback(async (pw: string) => {
+  const fetchEvents = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/events", {
-        headers: { Authorization: encodeBasic(pw) },
-      });
+      const res = await fetch("/api/events");
       if (!res.ok) throw new Error("Failed to fetch");
       const data = await res.json();
       setEvents(data.events ?? []);
@@ -55,25 +52,14 @@ export default function AdminPage() {
     }
   }, []);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthError("");
-    // Verify auth by calling the API
-    try {
-      const res = await fetch("/api/events", {
-        headers: { Authorization: encodeBasic(password) },
-      });
-      if (res.ok) {
-        setAuthed(true);
-        const data = await res.json();
-        setEvents(data.events ?? []);
-      } else {
-        setAuthError("Invalid password");
-      }
-    } catch {
-      setAuthError("Connection error");
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.replace("/admin/login");
     }
-  };
+    if (status === "authenticated") {
+      fetchEvents();
+    }
+  }, [status, router, fetchEvents]);
 
   const handleAddEvent = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,10 +69,7 @@ export default function AdminPage() {
     try {
       const res = await fetch("/api/events", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: encodeBasic(password),
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: form.title,
           date: dateTime,
@@ -100,7 +83,7 @@ export default function AdminPage() {
       }
       setSuccess("Event added successfully");
       setForm({ title: "", date: "", time: "18:00", description: "", lumaUrl: "" });
-      fetchEvents(password);
+      fetchEvents();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to add event");
     }
@@ -111,15 +94,25 @@ export default function AdminPage() {
     setError("");
     setSuccess("");
     try {
-      const res = await fetch(`/api/events/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: encodeBasic(password) },
-      });
+      const res = await fetch(`/api/events/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to delete");
       setSuccess("Event deleted");
-      fetchEvents(password);
+      fetchEvents();
     } catch {
       setError("Failed to delete event");
+    }
+  };
+
+  const handleRotateKey = async () => {
+    if (!confirm("Rotate the access key? The old key will stop working immediately.")) return;
+    setRotatedKey(null);
+    try {
+      const res = await fetch("/api/admin/rotate-key", { method: "POST" });
+      if (!res.ok) throw new Error("Failed to rotate key");
+      const data = await res.json();
+      setRotatedKey(data.newKey);
+    } catch {
+      setError("Failed to rotate access key");
     }
   };
 
@@ -130,54 +123,17 @@ export default function AdminPage() {
     }
   }, [success]);
 
-  if (!authed) {
+  if (status === "loading") {
     return (
-      <div style={{
-        minHeight: "100vh", background: "#000", display: "flex", alignItems: "center",
-        justifyContent: "center", padding: "20px",
-      }}>
-        <div style={{ width: "100%", maxWidth: 380 }}>
-          <div style={{ ...BEBAS, fontSize: "2rem", color: "#fff", marginBottom: "0.25rem" }}>
-            OPENCLAW <span style={{ color: "#2563EB" }}>SLC</span>
-          </div>
-          <div style={{ ...MONO, fontSize: "0.42rem", letterSpacing: "0.24em", color: "rgba(255,255,255,0.35)", marginBottom: "2rem", textTransform: "uppercase" }}>
-            Admin Panel
-          </div>
-          <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            <div>
-              <label style={{ ...MONO, fontSize: "0.45rem", letterSpacing: "0.16em", textTransform: "uppercase", color: "rgba(255,255,255,0.45)", display: "block", marginBottom: "0.5rem" }}>
-                Password
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                style={{
-                  width: "100%", padding: "10px 14px", background: "rgba(255,255,255,0.05)",
-                  border: "1px solid rgba(255,255,255,0.15)", color: "#fff",
-                  ...MONO, fontSize: "0.85rem", outline: "none",
-                }}
-                placeholder="Enter password"
-                autoFocus
-              />
-            </div>
-            {authError && (
-              <div style={{ ...MONO, fontSize: "0.50rem", color: "#EF4444", letterSpacing: "0.1em" }}>
-                {authError}
-              </div>
-            )}
-            <button type="submit" style={{
-              padding: "12px 20px", background: "#2563EB", color: "#fff",
-              border: "none", cursor: "pointer", ...MONO, fontSize: "0.60rem",
-              letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 700,
-            }}>
-              LOGIN →
-            </button>
-          </form>
+      <div style={{ minHeight: "100vh", background: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ ...MONO, fontSize: "0.52rem", color: "rgba(255,255,255,0.35)", letterSpacing: "0.14em" }}>
+          LOADING...
         </div>
       </div>
     );
   }
+
+  if (status === "unauthenticated") return null;
 
   const now = new Date();
   const sorted = [...events].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -192,13 +148,57 @@ export default function AdminPage() {
               OPENCLAW <span style={{ color: "#2563EB" }}>SLC</span>
             </div>
             <div style={{ ...MONO, fontSize: "0.42rem", letterSpacing: "0.24em", color: "rgba(255,255,255,0.35)", textTransform: "uppercase" }}>
-              Admin Panel
+              Admin Panel — {session?.user?.email}
             </div>
           </div>
-          <a href="/" style={{ ...MONO, fontSize: "0.48rem", letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.35)", textDecoration: "none" }}>
-            ← Back to site
-          </a>
+          <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+            <button
+              onClick={handleRotateKey}
+              style={{
+                padding: "6px 12px", background: "rgba(37,99,235,0.10)", color: "#93C5FD",
+                border: "1px solid rgba(37,99,235,0.25)", cursor: "pointer",
+                ...MONO, fontSize: "0.42rem", letterSpacing: "0.12em", textTransform: "uppercase",
+              }}
+            >
+              Rotate Key
+            </button>
+            <button
+              onClick={() => signOut({ callbackUrl: "/admin/login" })}
+              style={{
+                padding: "6px 12px", background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.45)",
+                border: "1px solid rgba(255,255,255,0.12)", cursor: "pointer",
+                ...MONO, fontSize: "0.42rem", letterSpacing: "0.12em", textTransform: "uppercase",
+              }}
+            >
+              Sign Out
+            </button>
+            <a href="/" style={{ ...MONO, fontSize: "0.48rem", letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.35)", textDecoration: "none" }}>
+              ← Back
+            </a>
+          </div>
         </div>
+
+        {/* Rotated key display */}
+        {rotatedKey && (
+          <div style={{
+            padding: "14px 18px",
+            background: "rgba(37,99,235,0.12)",
+            border: "1px solid rgba(37,99,235,0.45)",
+            color: "#DBEAFE",
+            ...MONO,
+            fontSize: "0.52rem",
+            marginBottom: "1.5rem",
+            lineHeight: 1.8,
+          }}>
+            <div style={{ color: "#93C5FD", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: "0.5rem" }}>
+              ⚠ New Access Key — Copy Now
+            </div>
+            <div style={{ fontSize: "0.85rem", wordBreak: "break-all", color: "#fff" }}>{rotatedKey}</div>
+            <div style={{ color: "rgba(219,234,254,0.55)", marginTop: "0.5rem" }}>
+              This will not be shown again.
+            </div>
+          </div>
+        )}
 
         {/* Feedback banners */}
         {error && (

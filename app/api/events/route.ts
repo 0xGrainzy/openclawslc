@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth-options";
 
 const EVENTS_FILE = path.join(process.cwd(), "public", "events.json");
 
@@ -17,26 +19,16 @@ function writeEvents(data: { events: unknown[] }) {
   fs.writeFileSync(EVENTS_FILE, JSON.stringify(data, null, 2), "utf-8");
 }
 
-function checkAuth(req: NextRequest): boolean {
-  const auth = req.headers.get("authorization") ?? "";
-  if (!auth.startsWith("Basic ")) return false;
-  const decoded = Buffer.from(auth.slice(6), "base64").toString("utf-8");
-  const [, password] = decoded.split(":", 2);
-  const expected = process.env.ADMIN_PASSWORD ?? "SLCAdmin2026!";
-  return password === expected;
-}
-
 export async function GET() {
+  // Events list is public (displayed on site)
   const data = readEvents();
   return NextResponse.json(data);
 }
 
 export async function POST(req: NextRequest) {
-  if (!checkAuth(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, {
-      status: 401,
-      headers: { "WWW-Authenticate": 'Basic realm="OpenClaw Admin"' },
-    });
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const body = await req.json();
