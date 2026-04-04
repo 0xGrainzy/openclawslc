@@ -1,0 +1,36 @@
+{
+  "events": [
+    {
+      "id": "1742000000000",
+      "title": "AI Agents & Crypto Infrastructure",
+      "date": "2026-03-20T18:00:00",
+      "description": "Deep dive into autonomous agent architectures and the crypto rails powering them. Builders and founders only — bring your stack.",
+      "lumaUrl": "https://lu.ma/openclawslc",
+      "createdAt": "2026-03-01T00:00:00.000Z"
+    },
+    {
+      "id": "1744500000000",
+      "title": "DeFi × AI: The New Stack",
+      "date": "2026-04-10T18:30:00",
+      "description": "Panel discussion on where DeFi protocols meet AI-native applications. Live demos from three local teams.",
+      "lumaUrl": "https://lu.ma/openclawslc",
+      "createdAt": "2026-03-10T00:00:00.000Z"
+    },
+    {
+      "id": "1745600000000",
+      "title": "Founders Roundtable",
+      "date": "2026-04-24T19:00:00",
+      "description": "Invite-only session for founders and senior builders. Candid conversation about what's working, what isn't, and what's next.",
+      "lumaUrl": "https://lu.ma/openclawslc",
+      "createdAt": "2026-03-15T00:00:00.000Z"
+    },
+    {
+      "id": "1746800000000",
+      "title": "Builder Demo Night",
+      "date": "2026-05-08T18:00:00",
+      "description": "Open demo night. Five-minute slots, anyone can present. Agents, apps, protocols — if you built it, show it.",
+      "lumaUrl": "https://lu.ma/openclawslc",
+      "createdAt": "2026-03-20T00:00:00.000Z"
+    }
+  ]
+}

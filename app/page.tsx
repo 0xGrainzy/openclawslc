@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import dynamic from "next/dynamic";
 
 const MountainGL = dynamic(() => import("@/components/MountainGL"), { ssr: false });
@@ -14,13 +14,16 @@ const LUMA      = "https://lu.ma/openclawslc";
 const BEBAS: React.CSSProperties = { fontFamily:"'Bebas Neue',sans-serif", letterSpacing:"0.02em" };
 const MONO: React.CSSProperties  = { fontFamily:"'JetBrains Mono','Fira Code','Courier New',monospace" };
 
-/* ─── Data ────────────────────────────────────────────────────── */
-const EVENTS = [
-  { date:"MAR 20", title:"AI Agents & Crypto Infrastructure", type:"Meetup"      },
-  { date:"APR 10", title:"DeFi × AI: The New Stack",          type:"Panel"       },
-  { date:"APR 24", title:"Founders Roundtable",               type:"Invite Only" },
-  { date:"MAY 08", title:"Builder Demo Night",                 type:"Open"        },
-];
+/* ─── Types ───────────────────────────────────────────────────── */
+interface Event {
+  id: string;
+  title: string;
+  date: string;
+  description: string;
+  lumaUrl: string;
+  createdAt: string;
+}
+
 const ARTICLES = [
   { tag:"GUIDE",     date:"MAR 2026", title:"OpenClaw Setup Best Practices",                        href:"/articles/openclaw-setup" },
   { tag:"DEEP DIVE", date:"MAR 2026", title:"AI Agents in the Wasatch: Why SLC Is Quietly Winning", href:"/articles/ai-agents-wasatch"        },
@@ -39,6 +42,22 @@ export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scroll, setScroll]     = useState(0);
   const [isMobile, setIsMobile] = useState(false);
+  const [events, setEvents]     = useState<Event[]>([]);
+
+  const fetchEvents = useCallback(async () => {
+    try {
+      const res = await fetch("/api/events");
+      if (!res.ok) return;
+      const data = await res.json();
+      setEvents(data.events ?? []);
+    } catch {
+      // Silently fail — site still works without events
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchEvents();
+  }, [fetchEvents]);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -167,17 +186,53 @@ export default function Home() {
             <a href={LUMA} target="_blank" rel="noopener noreferrer"
               style={{...MONO,fontSize:"0.48rem",letterSpacing:"0.2em",textTransform:"uppercase",color:"#60A5FA",textDecoration:"none"}}>Luma →</a>
           </div>
-          {EVENTS.map((ev,i)=>(
-            <div key={i} style={{display:"grid",gridTemplateColumns:isMobile?"3.5rem 1fr":"4.5rem 1fr auto",
-              gap:"clamp(8px,2vw,20px)",alignItems:"center",padding:"1rem 0",borderTop:"1px solid rgba(255,255,255,0.12)"}}>
-              <span style={{...MONO,fontSize:"0.48rem",color:"rgba(255,255,255,0.55)",letterSpacing:"0.08em"}}>{ev.date}</span>
-              <span style={{fontSize:"clamp(0.88rem,2vw,1.1rem)",fontWeight:700,color:"#fff",lineHeight:1.3}}>{ev.title}</span>
-              {!isMobile && <span style={{...MONO,fontSize:"0.42rem",letterSpacing:"0.14em",textTransform:"uppercase",color:"#93C5FD",whiteSpace:"nowrap"}}>{ev.type}</span>}
+          {events.length === 0 ? (
+            <div style={{padding:"1.5rem 0",borderTop:"1px solid rgba(255,255,255,0.12)"}}>
+              <span style={{...MONO,fontSize:"0.58rem",color:"rgba(255,255,255,0.35)",letterSpacing:"0.08em"}}>
+                No upcoming events scheduled. Check back soon.
+              </span>
             </div>
-          ))}
+          ) : (
+            (() => {
+              const now = new Date();
+              const sorted = [...events].sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+              return sorted.map((ev) => {
+                const evDate = new Date(ev.date);
+                const isPast = evDate < now;
+                const monthDay = evDate.toLocaleDateString("en-US",{month:"short",day:"numeric"}).toUpperCase();
+                return (
+                  <div key={ev.id} style={{
+                    padding:"1rem 0",borderTop:"1px solid rgba(255,255,255,0.12)",
+                    opacity: isPast ? 0.45 : 1,
+                    transition:"opacity 0.2s",
+                  }}>
+                    <div style={{display:"grid",gridTemplateColumns:isMobile?"3.5rem 1fr":"4.5rem 1fr",
+                      gap:"clamp(8px,2vw,20px)",alignItems:"flex-start"}}>
+                      <div style={{paddingTop:"0.15rem"}}>
+                        <span style={{...MONO,fontSize:"0.45rem",color:isPast?"rgba(255,255,255,0.35)":"rgba(255,255,255,0.55)",letterSpacing:"0.08em",display:"block"}}>{monthDay}</span>
+                        {isPast && <span style={{...MONO,fontSize:"0.38rem",letterSpacing:"0.12em",textTransform:"uppercase",color:"rgba(255,255,255,0.25)"}}>PAST</span>}
+                      </div>
+                      <div>
+                        <span style={{fontSize:"clamp(0.88rem,2vw,1.05rem)",fontWeight:700,color:isPast?"rgba(255,255,255,0.45)":"#fff",lineHeight:1.35,display:"block",marginBottom:"0.3rem"}}>{ev.title}</span>
+                        {ev.description && !isMobile && (
+                          <span style={{fontSize:"0.78rem",color:"rgba(255,255,255,0.45)",lineHeight:1.6,display:"block",marginBottom:"0.4rem"}}>{ev.description}</span>
+                        )}
+                        <a href={ev.lumaUrl} target="_blank" rel="noopener noreferrer"
+                          style={{...MONO,fontSize:"0.42rem",letterSpacing:"0.14em",textTransform:"uppercase",
+                            color:isPast?"rgba(255,255,255,0.25)":"#60A5FA",textDecoration:"none",
+                            display:"inline-flex",alignItems:"center",gap:"0.3rem",pointerEvents:isPast?"none":"auto"}}>
+                          RSVP on Luma →
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                );
+              });
+            })()
+          )}
           <div style={{borderTop:"1px solid rgba(255,255,255,0.06)",marginTop:"0.1rem",paddingTop:"1.2rem"}}>
             <a href={LUMA} target="_blank" rel="noopener noreferrer"
-              style={{display:"inline-block",padding:"12px 24px",background:"#2563EB",color:"#fff",...MONO,fontSize:"0.60rem",letterSpacing:"0.18em",textTransform:"uppercase",fontWeight:700,textDecoration:"none"}}>RSVP on Luma →</a>
+              style={{display:"inline-block",padding:"12px 24px",background:"#2563EB",color:"#fff",...MONO,fontSize:"0.60rem",letterSpacing:"0.18em",textTransform:"uppercase",fontWeight:700,textDecoration:"none"}}>VIEW ALL ON LUMA →</a>
           </div>
         </div>
       </section>
