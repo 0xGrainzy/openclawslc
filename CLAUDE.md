@@ -56,6 +56,9 @@ app/
     auth/[...nextauth]/     NextAuth handler (re-exports authOptions).
     events/route.ts         GET (public) + POST (auth) for events.json.
     events/[id]/route.ts    DELETE (auth) by id.
+    proposals/route.ts      POST (public, rate-limited) to submit an event
+                            proposal; GET (auth) to list submissions.
+    proposals/[id]/route.ts DELETE (auth) to dismiss a proposal.
   articles/
     openclaw-setup/         Static MDX-style React pages (just JSX, no MDX).
     ai-agents-wasatch/
@@ -73,7 +76,12 @@ lib/
 
 public/
   events.json               Source of truth for the events list (read/written
-                            by the events API at runtime).
+                            by the events API at runtime). Currently empty —
+                            the site advertises "no active dates" and invites
+                            proposals instead.
+  proposals.json            Store for public event-proposal submissions.
+                            Written by /api/proposals (public POST), read by
+                            the admin panel.
   *.svg, favicon.ico        Static assets.
 
 proxy.ts                    Next.js middleware (see "Middleware" below).
@@ -136,6 +144,25 @@ folder with a `page.tsx`, then append to `ARTICLES`.
   **ephemeral on Vercel** (read-only filesystem outside `/tmp`). If you
   touch this code, preserve the existing behavior unless explicitly asked
   to migrate to a database.
+
+### Proposals (public submissions)
+
+`public/proposals.json` shape:
+
+```json
+{ "proposals": [ { "id", "title", "description", "proposedDate", "contact", "createdAt" } ] }
+```
+
+- `POST /api/proposals` is **public** but rate-limited (3 submissions per
+  hour per IP, using `lib/rate-limit.ts`). Requires `title` + `contact`.
+- `GET /api/proposals` and `DELETE /api/proposals/[id]` require an admin
+  session.
+- The home page events section shows a "PROPOSE AN EVENT" toggle that
+  reveals an inline form — it's visible even when the events list is
+  empty, which is the current default state of the site.
+- The admin panel lists pending proposals below the event list with a
+  "Dismiss" button.
+- Same Vercel ephemerality caveat as `events.json`.
 
 ## Auth
 

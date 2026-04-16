@@ -20,11 +20,21 @@ interface Event {
   createdAt: string;
 }
 
+interface Proposal {
+  id: string;
+  title: string;
+  description: string;
+  proposedDate: string;
+  contact: string;
+  createdAt: string;
+}
+
 export default function AdminPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
   const [events, setEvents] = useState<Event[]>([]);
+  const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -51,14 +61,26 @@ export default function AdminPage() {
     }
   }, []);
 
+  const fetchProposals = useCallback(async () => {
+    try {
+      const res = await fetch("/api/proposals");
+      if (!res.ok) return;
+      const data = await res.json();
+      setProposals(data.proposals ?? []);
+    } catch {
+      // Non-fatal — proposals list is secondary
+    }
+  }, []);
+
   useEffect(() => {
     if (status === "unauthenticated") {
       router.replace("/admin/login");
     }
     if (status === "authenticated") {
       fetchEvents();
+      fetchProposals();
     }
-  }, [status, router, fetchEvents]);
+  }, [status, router, fetchEvents, fetchProposals]);
 
   const handleAddEvent = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,6 +121,20 @@ export default function AdminPage() {
       fetchEvents();
     } catch {
       setError("Failed to delete event");
+    }
+  };
+
+  const handleDeleteProposal = async (id: string, title: string) => {
+    if (!confirm(`Dismiss proposal "${title}"?`)) return;
+    setError("");
+    setSuccess("");
+    try {
+      const res = await fetch(`/api/proposals/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete");
+      setSuccess("Proposal dismissed");
+      fetchProposals();
+    } catch {
+      setError("Failed to delete proposal");
     }
   };
 
@@ -292,6 +328,54 @@ export default function AdminPage() {
             <div style={{ ...MONO, fontSize: "0.52rem", color: "rgba(255,255,255,0.25)", padding: "1rem 0" }}>
               No events yet. Add your first one above.
             </div>
+          )}
+        </div>
+
+        {/* Proposals from the public */}
+        <div style={{ marginTop: "3rem" }}>
+          <div style={{ ...MONO, fontSize: "0.42rem", letterSpacing: "0.28em", textTransform: "uppercase", color: "#2563EB", marginBottom: "1.25rem" }}>
+            Event Proposals ({proposals.length})
+          </div>
+          {proposals.length === 0 ? (
+            <div style={{ ...MONO, fontSize: "0.52rem", color: "rgba(255,255,255,0.25)", padding: "1rem 0" }}>
+              No proposals yet.
+            </div>
+          ) : (
+            [...proposals].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map(p => (
+              <div key={p.id} style={{
+                padding: "1.25rem", borderTop: "1px solid rgba(255,255,255,0.08)",
+                display: "flex", gap: "1rem", alignItems: "flex-start",
+              }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: "1rem", fontWeight: 700, color: "#fff", marginBottom: "0.35rem" }}>{p.title}</div>
+                  {p.proposedDate && (
+                    <div style={{ ...MONO, fontSize: "0.48rem", color: "rgba(255,255,255,0.45)", marginBottom: "0.25rem" }}>
+                      Proposed for {p.proposedDate}
+                    </div>
+                  )}
+                  <div style={{ ...MONO, fontSize: "0.48rem", color: "rgba(255,255,255,0.45)", marginBottom: "0.35rem" }}>
+                    Contact: {p.contact}
+                  </div>
+                  {p.description && (
+                    <div style={{ fontSize: "0.82rem", color: "rgba(255,255,255,0.55)", lineHeight: 1.6, marginBottom: "0.35rem" }}>{p.description}</div>
+                  )}
+                  <div style={{ ...MONO, fontSize: "0.40rem", color: "rgba(255,255,255,0.25)", letterSpacing: "0.1em" }}>
+                    Submitted {new Date(p.createdAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleDeleteProposal(p.id, p.title)}
+                  style={{
+                    padding: "6px 12px", background: "rgba(239,68,68,0.1)", color: "#FCA5A5",
+                    border: "1px solid rgba(239,68,68,0.25)", cursor: "pointer",
+                    ...MONO, fontSize: "0.42rem", letterSpacing: "0.12em", textTransform: "uppercase",
+                    flexShrink: 0,
+                  }}
+                >
+                  Dismiss
+                </button>
+              </div>
+            ))
           )}
         </div>
       </div>

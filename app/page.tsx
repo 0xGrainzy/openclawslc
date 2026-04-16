@@ -13,6 +13,12 @@ const LUMA      = "https://lu.ma/openclawslc";
 /* ─── Shared styles ───────────────────────────────────────────── */
 const BEBAS: React.CSSProperties = { fontFamily:"'Bebas Neue',sans-serif", letterSpacing:"0.02em" };
 const MONO: React.CSSProperties  = { fontFamily:"'JetBrains Mono','Fira Code','Courier New',monospace" };
+const proposalInput: React.CSSProperties = {
+  width:"100%", padding:"9px 12px",
+  background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.14)",
+  color:"#fff", fontFamily:"'JetBrains Mono','Fira Code','Courier New',monospace",
+  fontSize:"0.78rem", outline:"none",
+};
 
 /* ─── Types ───────────────────────────────────────────────────── */
 interface Event {
@@ -43,6 +49,10 @@ export default function Home() {
   const [scroll, setScroll]     = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   const [events, setEvents]     = useState<Event[]>([]);
+  const [proposeOpen, setProposeOpen] = useState(false);
+  const [proposal, setProposal] = useState({ title:"", description:"", proposedDate:"", contact:"" });
+  const [proposeState, setProposeState] = useState<"idle"|"sending"|"sent"|"error">("idle");
+  const [proposeError, setProposeError] = useState("");
 
   const fetchEvents = useCallback(async () => {
     try {
@@ -78,6 +88,28 @@ export default function Home() {
   const goTo = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
     setMenuOpen(false);
+  };
+
+  const submitProposal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProposeError("");
+    setProposeState("sending");
+    try {
+      const res = await fetch("/api/proposals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(proposal),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? "Submission failed");
+      }
+      setProposeState("sent");
+      setProposal({ title:"", description:"", proposedDate:"", contact:"" });
+    } catch (err) {
+      setProposeState("error");
+      setProposeError(err instanceof Error ? err.message : "Submission failed");
+    }
   };
 
   const { dir, desc } = orbitLabel(scroll);
@@ -188,8 +220,11 @@ export default function Home() {
           </div>
           {events.length === 0 ? (
             <div style={{padding:"1.5rem 0",borderTop:"1px solid rgba(255,255,255,0.12)"}}>
-              <span style={{...MONO,fontSize:"0.58rem",color:"rgba(255,255,255,0.35)",letterSpacing:"0.08em"}}>
-                No upcoming events scheduled. Check back soon.
+              <span style={{...MONO,fontSize:"0.58rem",color:"rgba(255,255,255,0.35)",letterSpacing:"0.08em",display:"block",marginBottom:"0.5rem"}}>
+                No active dates on the calendar.
+              </span>
+              <span style={{...MONO,fontSize:"0.52rem",color:"rgba(255,255,255,0.55)",letterSpacing:"0.06em"}}>
+                Have one in mind? Propose it below.
               </span>
             </div>
           ) : (
@@ -230,10 +265,50 @@ export default function Home() {
               });
             })()
           )}
-          <div style={{borderTop:"1px solid rgba(255,255,255,0.06)",marginTop:"0.1rem",paddingTop:"1.2rem"}}>
+          <div style={{borderTop:"1px solid rgba(255,255,255,0.06)",marginTop:"0.1rem",paddingTop:"1.2rem",display:"flex",gap:10,flexWrap:"wrap"}}>
             <a href={LUMA} target="_blank" rel="noopener noreferrer"
               style={{display:"inline-block",padding:"12px 24px",background:"#2563EB",color:"#fff",...MONO,fontSize:"0.60rem",letterSpacing:"0.18em",textTransform:"uppercase",fontWeight:700,textDecoration:"none"}}>VIEW ALL ON LUMA →</a>
+            <button onClick={()=>setProposeOpen(o=>!o)}
+              style={{padding:"12px 24px",background:"rgba(255,255,255,0.06)",color:"rgba(255,255,255,0.80)",...MONO,fontSize:"0.60rem",letterSpacing:"0.18em",textTransform:"uppercase",fontWeight:600,border:"1px solid rgba(255,255,255,0.22)",cursor:"pointer"}}>
+              {proposeOpen ? "CLOSE" : "PROPOSE AN EVENT →"}
+            </button>
           </div>
+
+          {proposeOpen && (
+            <form onSubmit={submitProposal} style={{marginTop:"1.25rem",padding:"1.25rem",border:"1px solid rgba(255,255,255,0.10)",display:"flex",flexDirection:"column",gap:"0.75rem"}}>
+              <div style={{...MONO,fontSize:"0.42rem",letterSpacing:"0.22em",textTransform:"uppercase",color:"#60A5FA"}}>SUBMIT A PROPOSAL</div>
+              {proposeState === "sent" ? (
+                <div style={{...MONO,fontSize:"0.58rem",color:"#93C5FD",letterSpacing:"0.06em",padding:"0.4rem 0"}}>
+                  Thanks — we&apos;ll reach out if it&apos;s a fit.
+                </div>
+              ) : (
+                <>
+                  <input required placeholder="Event title *" value={proposal.title}
+                    onChange={e=>setProposal(p=>({...p,title:e.target.value}))}
+                    style={proposalInput}/>
+                  <textarea placeholder="Short description — what, who it's for, format" rows={3}
+                    value={proposal.description}
+                    onChange={e=>setProposal(p=>({...p,description:e.target.value}))}
+                    style={{...proposalInput,resize:"vertical"}}/>
+                  <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:"0.75rem"}}>
+                    <input type="date" placeholder="Proposed date" value={proposal.proposedDate}
+                      onChange={e=>setProposal(p=>({...p,proposedDate:e.target.value}))}
+                      style={proposalInput}/>
+                    <input required placeholder="Your email or @handle *" value={proposal.contact}
+                      onChange={e=>setProposal(p=>({...p,contact:e.target.value}))}
+                      style={proposalInput}/>
+                  </div>
+                  {proposeError && (
+                    <div style={{...MONO,fontSize:"0.52rem",color:"#FCA5A5"}}>{proposeError}</div>
+                  )}
+                  <button type="submit" disabled={proposeState === "sending"}
+                    style={{alignSelf:"flex-start",padding:"11px 22px",background:"#2563EB",color:"#fff",...MONO,fontSize:"0.60rem",letterSpacing:"0.18em",textTransform:"uppercase",fontWeight:700,border:"none",cursor:proposeState === "sending"?"default":"pointer",opacity:proposeState === "sending"?0.6:1}}>
+                    {proposeState === "sending" ? "SENDING…" : "SUBMIT →"}
+                  </button>
+                </>
+              )}
+            </form>
+          )}
         </div>
       </section>
 
